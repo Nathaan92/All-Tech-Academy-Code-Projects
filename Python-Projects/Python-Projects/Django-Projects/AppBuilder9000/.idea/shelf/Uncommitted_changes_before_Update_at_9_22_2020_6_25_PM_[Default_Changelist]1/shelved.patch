@@ -1,0 +1,1666 @@
+Index: AppBuilder9000/RestaurantApp/views.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.shortcuts import render, redirect, get_object_or_404\r\nfrom django.http import HttpResponse, HttpResponseRedirect\r\nfrom django.contrib import messages\r\nfrom .models import Restaurant\r\nfrom .forms import RestaurantForm\r\nfrom bs4 import BeautifulSoup\r\nimport requests\r\n\r\n#zomato api key\r\nauth = {'user-key': 'e3491d1b716b19e9800329944dce6985'}\r\n#here map api key is found in the javascript in search.html (bottom of page)\r\n\r\n\r\n#home page\r\ndef Restaurant_home(request):\r\n    return render(request, 'RestaurantApp/RestaurantApp_home.html')\r\n\r\n\r\n#MyList: index of restaurants - show.html\r\ndef Restaurant_show(request):\r\n    restaurants = Restaurant.objects.all()\r\n    content = {'restaurants': restaurants,}\r\n    return render(request, 'RestaurantApp/RestaurantApp_show.html', content)\r\n\r\n\r\n#details page\r\ndef Restaurant_details(request, pk):\r\n    restaurant = Restaurant.objects.get(pk=pk)\r\n    content = {'restaurant': restaurant}\r\n    return render(request, 'RestaurantApp/RestaurantApp_details.html', content)\r\n\r\n\r\n#edit page\r\ndef Restaurant_edit(request, pk):\r\n    restaurant = get_object_or_404(Restaurant, pk=pk)\r\n    if request.method == \"POST\":\r\n        form = RestaurantForm(request.POST, instance=restaurant)\r\n        if form.is_valid():\r\n            restaurant.save()\r\n            messages.success(request, \"Your changes were saved!\")\r\n            return redirect('RestaurantShow')\r\n        else:                       #this should be nearly impossible to trigger, however it still exists\r\n            messages.error(request, \"Please make sure all fields are valid\")\r\n            print(form.errors)\r\n            return redirect('RestaurantEdit', pk)\r\n    else:\r\n        form = RestaurantForm(instance=restaurant)\r\n    content = {'form': form, 'pk': pk, 'restaurant': restaurant,}\r\n    return render(request, 'RestaurantApp/RestaurantApp_edit.html', content)\r\n\r\n\r\n#add restaurant\r\ndef Restaurant_add(request):\r\n    form = RestaurantForm(request.POST or None)\r\n    if request.method == 'POST':\r\n        if form.is_valid():\r\n            form.save()\r\n            messages.success(request, \"Your restaurant was added to MyList\")\r\n            return redirect('RestaurantShow')\r\n        else:                   # this should be nearly impossible to trigger, however it still exists\r\n            messages.error(request, \"Please make sure all fields are valid\")\r\n            return redirect('RestaurantAdd')\r\n    content = {'form': form,}\r\n    return render(request, 'RestaurantApp/RestaurantApp_add.html', content)\r\n\r\n\r\n#delete function for show, details, and edit pages\r\ndef Restaurant_delete(request, pk):\r\n    restaurant = get_object_or_404(Restaurant, pk=pk)\r\n    if request.method == \"POST\":\r\n        restaurant.delete()\r\n        return redirect('RestaurantShow')\r\n    return redirect('RestaurantShow')\r\n\r\n\r\n#save to MyList feature in search.html\r\ndef Restaurant_save(request):\r\n    form = RestaurantForm(request.POST or None)\r\n    if request.method == 'POST':\r\n        if form.is_valid():\r\n            newform = form.save(commit=False)\r\n            newform.establishment = str(newform.establishment)[1:-1].strip(\"'\")     #establishment is always given in a list\r\n            newform.save()                                  #   this removes the brackets and quotes so we can save just the\r\n            print(newform.establishment)                    #   string values to the database (otherwise brackets show up on show.html)\r\n            return redirect('RestaurantShow')\r\n    else:                               #if the user tries to access through URL, we're sending them back to homepage\r\n        return redirect('RestaurantHome')\r\n\r\n\r\n#search by city on home page, this is a two-step process, we first need to query zomato for city id (multiple cities exist with the same name)\r\ndef Restaurant_api(request):\r\n    if request.method == 'POST':\r\n        city = request.POST.get('userCity')     #grab user input\r\n        response = requests.get('https://developers.zomato.com/api/v2.1/cities?q={}'.format(city), headers=auth)\r\n        city_data = response.json()[\"location_suggestions\"]\r\n        if city_data == []:                     #if the response came back empty\r\n            messages.error(request, \"Your city didn't match any in our database - try one more time!\")\r\n            return redirect('RestaurantHome')   #sends ^this alert message and keeps user on home page\r\n        else:                                   #otherwise if the response has data in it\r\n            cities = {}                         #new dictionary to store incoming data\r\n            i = 0\r\n            while i < len(city_data):           #cycle through all of the returned data and only display\r\n                id = city_data[i][\"id\"]         #   city names and their corresponding id which we will need\r\n                name = city_data[i][\"name\"]     #   to query the api again\r\n                cities.update({id: name})       #actually appends, rather than update, so existing entries are not overwritten\r\n                i += 1\r\n\r\n            content = {\r\n                'go': True,                     #this triggers the jQuery to open the \"did you mean\" modal\r\n                'cities': cities,               #carries our new dictionary into modal\r\n            }\r\n            return render(request, 'RestaurantApp/RestaurantApp_home.html', content)\r\n\r\n\r\n#search result from user input, only runs after user selects specific city\r\ndef Restaurant_search(request, key):\r\n    id = key                                #key is specified by which city the user selects\r\n    locresponse = requests.get('https://developers.zomato.com/api/v2.1/location_details?entity_id={}&entity_type=city'.format(id), headers=auth)\r\n    lat = locresponse.json()[\"location\"][\"latitude\"]            #accessing zomato api for city's latitude and longitude\r\n    lon = locresponse.json()[\"location\"][\"longitude\"]           #   needed for filtering\r\n    response = requests.get('https://developers.zomato.com/api/v2.1/search?entity_id={}&entity_type=city'.format(id), headers=auth)\r\n    content = iterateResponse(response, lat, lon)                #function located lower down\r\n    return render(request, 'RestaurantApp/RestaurantApp_search.html', content)\r\n\r\n\r\n#search near me button, functions exactly like restaurant_search except utilizes user's geolocation\r\ndef Restaurant_nearme(request):\r\n    locresponse = requests.get('http://ip-api.com/json/')       #geolocation api, assumes user's IP, is a rough guess - not completely accurate\r\n    lat = locresponse.json()['lat']\r\n    lon = locresponse.json()['lon']\r\n    response = requests.get('https://developers.zomato.com/api/v2.1/search?lat={}&lon={}'.format(lat, lon), headers=auth)\r\n    content = iterateResponse(response, lat, lon)\r\n    return render(request, 'RestaurantApp/RestaurantApp_search.html', content)\r\n\r\n\r\n#filtering search results, this is should only be available after user has established city they're searching\r\ndef Restaurant_filter(request):\r\n    lat = request.POST.get('currentlat')                   #keeping track of the city we're searching/filtering\r\n    lon = request.POST.get('currentlon')\r\n    if request.method == 'POST':                    #if user accessed the page through url, this will deny them\r\n        q = request.POST.get('q')                   #search box\r\n        rawradius = request.POST.get('radius')\r\n        zradius = int(rawradius)*1000               #make sure it's an integer, not binary\r\n        radius = int(zradius)                       #probably no decimals, but safety first\r\n        sortby = request.POST.get('sortby')\r\n        if sortby == 'ratingHtoL' or 'blank':       #transforming sort by into values we can\r\n            sort = 'rating'                         #   query the api with\r\n            order = 'desc'                          # 'or \"blank\"' meaning - if the user didn't specify, we'll deliver\r\n        if sortby == 'ratingLtoH':                  #   the results as best rating to worst rating\r\n            sort = 'rating'\r\n            order = 'asc'\r\n        if sortby == 'priceHtoL':\r\n            sort = 'cost'\r\n            order = 'desc'\r\n        if sortby == 'priceLtoH':\r\n            sort = 'cost'\r\n            order = 'asc'\r\n        response = requests.get('https://developers.zomato.com/api/v2.1/search?q={}&lat={}&lon={}&radius={}&sort={}&order={}'.format(q, lat, lon, radius, sort, order), headers=auth)\r\n        content = iterateResponse(response, lat, lon)\r\n        return render(request, 'RestaurantApp/RestaurantApp_search.html', content)\r\n    else:\r\n        return redirect('RestaurantNearMe')         #if user tried to navigate to /search/filter through url, we're bumping them to nearme function instead\r\n\r\n\r\ndef iterateResponse(response, lat, lon):\r\n    #each function's response variable queries the api a little bit differently, this is where they all catch up the same;\r\n    city_data = response.json()[\"restaurants\"]\r\n    restaurants = {}                                                        #setting up dictionary to store all our needed data\r\n    i = 0\r\n    while i < len(city_data):                                               #cycle through each restaurant we received from api\r\n        id = city_data[i][\"restaurant\"][\"id\"]                               #this is all the data we are requesting from the api each time\r\n        name = city_data[i][\"restaurant\"][\"name\"]\r\n        url = city_data[i][\"restaurant\"][\"url\"]\r\n        img = city_data[i][\"restaurant\"][\"thumb\"]\r\n        address = city_data[i][\"restaurant\"][\"location\"][\"address\"]\r\n        latitude = city_data[i][\"restaurant\"][\"location\"][\"latitude\"]\r\n        longitude = city_data[i][\"restaurant\"][\"location\"][\"longitude\"]\r\n        cuisines = city_data[i][\"restaurant\"][\"cuisines\"]\r\n        hours = city_data[i][\"restaurant\"][\"timings\"]\r\n        avgfortwo = city_data[i][\"restaurant\"][\"average_cost_for_two\"]\r\n        pricerange = city_data[i][\"restaurant\"][\"price_range\"]\r\n        highlights = city_data[i][\"restaurant\"][\"highlights\"]\r\n        rating = city_data[i][\"restaurant\"][\"user_rating\"][\"aggregate_rating\"]\r\n        rating_text = city_data[i][\"restaurant\"][\"user_rating\"][\"rating_text\"]\r\n        votes = city_data[i][\"restaurant\"][\"user_rating\"][\"votes\"]\r\n        menu = city_data[i][\"restaurant\"][\"menu_url\"]\r\n        phone = city_data[i][\"restaurant\"][\"phone_numbers\"]\r\n        establishment = city_data[i][\"restaurant\"][\"establishment\"]\r\n        if img == '':              #if the api returned nothing for img\r\n            try:\r\n                useragent = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.102 Safari/537.36'}\r\n                shortURL = url.split('?')[0]                                                       #(^user agent is needed to gain access)\r\n                page = requests.get(shortURL + '{}'.format('?amp=1'), headers=useragent, allow_redirects=False)\r\n                soup = BeautifulSoup(page.content, 'html.parser')           #use beautiful soup to data scrape the site with the\r\n                try:                                                        #    url we already have and add an image\r\n                    src = soup.findAll('amp-img')[1]['src']\r\n                    img = src.split('?')[0]                                 #this split is just to clean the jpg of any filters/cropping\r\n                except:\r\n                    src = soup.findAll('amp-img')[2]['src']\r\n                    img = src.split('?')[0]\r\n            except :\r\n                pass\r\n        restaurants.update({i: {\r\n            'id': id, 'name': name, 'url': url, 'img': img, 'address': address, 'latitude': latitude,\r\n            'longitude': longitude, 'cuisines': cuisines, 'hours': hours, 'avgfortwo': avgfortwo,\r\n            'pricerange': pricerange, 'highlights': highlights, 'rating': rating, 'rating_text': rating_text,\r\n            'votes': votes, 'menu': menu, 'phone': phone, 'establishment': establishment,\r\n        }})\r\n        i += 1\r\n    cityresponse = requests.get('https://developers.zomato.com/api/v2.1/cities?lat={}&lon={}'.format(lat, lon), headers=auth)\r\n    city = cityresponse.json()['location_suggestions'][0]['name']              #this is to be able to display the city name at the top of the page\r\n    content = {'restaurants': restaurants, 'city': city, 'lat': lat, 'lon': lon,}\r\n    return content\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/views.py	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/views.py	(date 1600824271091)
+@@ -8,28 +8,34 @@
+ 
+ #zomato api key
+ auth = {'user-key': 'e3491d1b716b19e9800329944dce6985'}
+-#here map api key is found in the javascript in search.html (bottom of page)
+-
+ 
+ #home page
+ def Restaurant_home(request):
+     return render(request, 'RestaurantApp/RestaurantApp_home.html')
+ 
+ 
+-#MyList: index of restaurants - show.html
++#add/suggest restaurant
++def Restaurant_add(request):
++    form = RestaurantForm(request.POST or None)
++    if request.method == 'POST':
++        if form.is_valid():
++            form.save()
++            return redirect('RestaurantHome')
++    content = {'form': form,}
++    return render(request, 'RestaurantApp/RestaurantApp_add.html', content)
++
++#index of restaurants - show.html
+ def Restaurant_show(request):
+-    restaurants = Restaurant.objects.all()
+-    content = {'restaurants': restaurants,}
++    restaurant = Restaurant.objects.all().order_by('-rating')
++    content = {'list_of_restaurants': restaurant,}
+     return render(request, 'RestaurantApp/RestaurantApp_show.html', content)
+ 
+-
+ #details page
+ def Restaurant_details(request, pk):
+     restaurant = Restaurant.objects.get(pk=pk)
+     content = {'restaurant': restaurant}
+     return render(request, 'RestaurantApp/RestaurantApp_details.html', content)
+ 
+-
+ #edit page
+ def Restaurant_edit(request, pk):
+     restaurant = get_object_or_404(Restaurant, pk=pk)
+@@ -37,54 +43,20 @@
+         form = RestaurantForm(request.POST, instance=restaurant)
+         if form.is_valid():
+             restaurant.save()
+-            messages.success(request, "Your changes were saved!")
+-            return redirect('RestaurantShow')
+-        else:                       #this should be nearly impossible to trigger, however it still exists
+-            messages.error(request, "Please make sure all fields are valid")
+-            print(form.errors)
+-            return redirect('RestaurantEdit', pk)
++            return redirect('RestaurantDetails', pk=restaurant.pk)
+     else:
+         form = RestaurantForm(instance=restaurant)
+     content = {'form': form, 'pk': pk, 'restaurant': restaurant,}
+     return render(request, 'RestaurantApp/RestaurantApp_edit.html', content)
+ 
+-
+-#add restaurant
+-def Restaurant_add(request):
+-    form = RestaurantForm(request.POST or None)
+-    if request.method == 'POST':
+-        if form.is_valid():
+-            form.save()
+-            messages.success(request, "Your restaurant was added to MyList")
+-            return redirect('RestaurantShow')
+-        else:                   # this should be nearly impossible to trigger, however it still exists
+-            messages.error(request, "Please make sure all fields are valid")
+-            return redirect('RestaurantAdd')
+-    content = {'form': form,}
+-    return render(request, 'RestaurantApp/RestaurantApp_add.html', content)
+-
+-
+-#delete function for show, details, and edit pages
++#delete
+ def Restaurant_delete(request, pk):
+     restaurant = get_object_or_404(Restaurant, pk=pk)
+     if request.method == "POST":
+         restaurant.delete()
+         return redirect('RestaurantShow')
+-    return redirect('RestaurantShow')
+-
+-
+-#save to MyList feature in search.html
+-def Restaurant_save(request):
+-    form = RestaurantForm(request.POST or None)
+-    if request.method == 'POST':
+-        if form.is_valid():
+-            newform = form.save(commit=False)
+-            newform.establishment = str(newform.establishment)[1:-1].strip("'")     #establishment is always given in a list
+-            newform.save()                                  #   this removes the brackets and quotes so we can save just the
+-            print(newform.establishment)                    #   string values to the database (otherwise brackets show up on show.html)
+-            return redirect('RestaurantShow')
+-    else:                               #if the user tries to access through URL, we're sending them back to homepage
+-        return redirect('RestaurantHome')
++    content = {'restaurant': restaurant}
++    return render(request, 'RestaurantApp/RestaurantApp_edit.html', content)
+ 
+ 
+ #search by city on home page, this is a two-step process, we first need to query zomato for city id (multiple cities exist with the same name)
+@@ -135,8 +107,8 @@
+ 
+ #filtering search results, this is should only be available after user has established city they're searching
+ def Restaurant_filter(request):
+-    lat = request.POST.get('currentlat')                   #keeping track of the city we're searching/filtering
+-    lon = request.POST.get('currentlon')
++    lat = request.POST.get('lat')                   #keeping track of the city we're searching/filtering
++    lon = request.POST.get('lon')
+     if request.method == 'POST':                    #if user accessed the page through url, this will deny them
+         q = request.POST.get('q')                   #search box
+         rawradius = request.POST.get('radius')
+@@ -182,6 +154,8 @@
+         highlights = city_data[i]["restaurant"]["highlights"]
+         rating = city_data[i]["restaurant"]["user_rating"]["aggregate_rating"]
+         rating_text = city_data[i]["restaurant"]["user_rating"]["rating_text"]
++        if rating_text == 'Not rated':
++            rating_text = False     #this eliminates 'Not rated' and votes being displayed in the card details panel
+         votes = city_data[i]["restaurant"]["user_rating"]["votes"]
+         menu = city_data[i]["restaurant"]["menu_url"]
+         phone = city_data[i]["restaurant"]["phone_numbers"]
+@@ -209,6 +183,5 @@
+         i += 1
+     cityresponse = requests.get('https://developers.zomato.com/api/v2.1/cities?lat={}&lon={}'.format(lat, lon), headers=auth)
+     city = cityresponse.json()['location_suggestions'][0]['name']              #this is to be able to display the city name at the top of the page
+-    content = {'restaurants': restaurants, 'city': city, 'lat': lat, 'lon': lon,}
+-    return content
+-
++    content = {'restaurants': restaurants, 'city': city, 'lat': lat, 'lon': lon}
++    return content
+\ No newline at end of file
+Index: AppBuilder9000/RestaurantApp/models.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.db import models\r\n\r\n\r\nPRICE_CHOICES = [\r\n    (1,'$'),\r\n    (2,'$$'),\r\n    (3,'$$$'),\r\n    (4,'$$$$'),\r\n]\r\n\r\n\r\nclass Restaurant(models.Model):\r\n    zomatoID = models.IntegerField(verbose_name=\"Zomato ID\", blank=True, null=True)\r\n    name = models.CharField(max_length=255, verbose_name=\"Restaurant Name\", default=\"\", blank=False, null=False)\r\n    url = models.URLField(max_length=200, verbose_name=\"Link to Zomato page\", blank=True, null=True)\r\n    img = models.URLField(max_length=200, verbose_name=\"Image link\", blank=True, null=True)\r\n    address = models.CharField(max_length=255, default=\"\", blank=False, null=False)\r\n    latitude = models.FloatField(max_length=10, verbose_name=\"Latitude\", blank=True, null=True)\r\n    longitude = models.FloatField(max_length=10, verbose_name=\"Longitude\", blank=True, null=True)\r\n    cuisines = models.CharField(max_length=255, default=\"\", blank=True)\r\n    hours = models.CharField(max_length=255, default=\"\", blank=True)\r\n    avgfortwo = models.IntegerField(verbose_name=\"Average for two\", blank=True, null=True)\r\n    pricerange = models.IntegerField(verbose_name=\"Price range\", choices=PRICE_CHOICES, blank=True, null=True)\r\n    rating = models.DecimalField(max_digits=2, decimal_places=1, verbose_name=\"Rating\", blank=True, null=True)\r\n    rating_text = models.CharField(max_length=50, default=\"\", verbose_name=\"Described as\", blank=True)\r\n    votes = models.IntegerField(verbose_name=\"Number of votes\", blank=True, null=True)\r\n    menu = models.URLField(max_length=200, verbose_name=\"Link to menu\", blank=True, null=True)\r\n    phone = models.CharField(max_length=100, default=\"\", verbose_name=\"Phone number(s)\", blank=True)\r\n    establishment = models.CharField(max_length=255, default=\"\", verbose_name=\"Type\", blank=True)\r\n    takeaway = models.BooleanField(verbose_name=\"Takeaway\", blank=True, null=True)\r\n    delivery = models.BooleanField(verbose_name=\"Delivery\", blank=True, null=True)\r\n    vegetarian = models.BooleanField(verbose_name=\"Vegetarian Options\", blank=True, null=True)\r\n    vegan = models.BooleanField(verbose_name=\"Vegan Options\", blank=True, null=True)\r\n    gluten_free = models.BooleanField(verbose_name=\"Gluten Free Options\", blank=True, null=True)\r\n    user_rating = models.DecimalField(max_digits=2, decimal_places=1, verbose_name=\"MyRating\", blank=True, null=True)\r\n    user_comments = models.TextField(max_length=500, default=\"\", blank=True)\r\n\r\n    objects = models.Manager()\r\n\r\n    def __str__(self):\r\n        return self.name\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/models.py	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/models.py	(date 1600824271118)
+@@ -1,39 +1,39 @@
+ from django.db import models
+ 
+ 
++RATING_CHOICES = [
++    (1, 1),
++    (2, 2),
++    (3, 3),
++    (4, 4),
++    (5, 5),
++]
++
+ PRICE_CHOICES = [
+-    (1,'$'),
+-    (2,'$$'),
+-    (3,'$$$'),
+-    (4,'$$$$'),
++    ('$','$'),
++    ('$$','$$'),
++    ('$$$','$$$'),
++    ('$$$$','$$$$'),
+ ]
+ 
++#boolean logic used for delivery, take-out, and outdoor-seating fields
++BOOL_CHOICES= [
++    (True, 'Yes'),
++    (False, 'No'),
++]
+ 
+ class Restaurant(models.Model):
+-    zomatoID = models.IntegerField(verbose_name="Zomato ID", blank=True, null=True)
+-    name = models.CharField(max_length=255, verbose_name="Restaurant Name", default="", blank=False, null=False)
+-    url = models.URLField(max_length=200, verbose_name="Link to Zomato page", blank=True, null=True)
+-    img = models.URLField(max_length=200, verbose_name="Image link", blank=True, null=True)
++    name = models.CharField(max_length=60, verbose_name="Restaurant Name", default="", blank=False, null=False)
++    cuisine =  models.CharField(max_length=60, default="", blank=False, null=False)
++    rating = models.IntegerField(default=None, choices=RATING_CHOICES, blank=True, null=True)
++    price = models.CharField(max_length=10, default=None, choices=PRICE_CHOICES, blank=True, null=True)
+     address = models.CharField(max_length=255, default="", blank=False, null=False)
+-    latitude = models.FloatField(max_length=10, verbose_name="Latitude", blank=True, null=True)
+-    longitude = models.FloatField(max_length=10, verbose_name="Longitude", blank=True, null=True)
+-    cuisines = models.CharField(max_length=255, default="", blank=True)
+-    hours = models.CharField(max_length=255, default="", blank=True)
+-    avgfortwo = models.IntegerField(verbose_name="Average for two", blank=True, null=True)
+-    pricerange = models.IntegerField(verbose_name="Price range", choices=PRICE_CHOICES, blank=True, null=True)
+-    rating = models.DecimalField(max_digits=2, decimal_places=1, verbose_name="Rating", blank=True, null=True)
+-    rating_text = models.CharField(max_length=50, default="", verbose_name="Described as", blank=True)
+-    votes = models.IntegerField(verbose_name="Number of votes", blank=True, null=True)
+-    menu = models.URLField(max_length=200, verbose_name="Link to menu", blank=True, null=True)
+-    phone = models.CharField(max_length=100, default="", verbose_name="Phone number(s)", blank=True)
+-    establishment = models.CharField(max_length=255, default="", verbose_name="Type", blank=True)
+-    takeaway = models.BooleanField(verbose_name="Takeaway", blank=True, null=True)
+-    delivery = models.BooleanField(verbose_name="Delivery", blank=True, null=True)
+-    vegetarian = models.BooleanField(verbose_name="Vegetarian Options", blank=True, null=True)
+-    vegan = models.BooleanField(verbose_name="Vegan Options", blank=True, null=True)
+-    gluten_free = models.BooleanField(verbose_name="Gluten Free Options", blank=True, null=True)
+-    user_rating = models.DecimalField(max_digits=2, decimal_places=1, verbose_name="MyRating", blank=True, null=True)
+-    user_comments = models.TextField(max_length=500, default="", blank=True)
++    city = models.CharField(max_length=60, default="", blank=False, null=False)
++    state_province = models.CharField(max_length=60, verbose_name="State/Province", default="", blank=False, null=False)
++    zip_code = models.CharField(max_length=60, verbose_name="Zip Code", default="", blank=False, null=False)
++    delivery = models.BooleanField(verbose_name="Delivery?", choices=BOOL_CHOICES, blank=True, null=True)
++    take_out = models.BooleanField(verbose_name="Take-out?", choices=BOOL_CHOICES, blank=True, null=True)
++    outdoor_seating = models.BooleanField(verbose_name="Outdoor seating/area?", choices=BOOL_CHOICES, blank=True, null=True)
+ 
+     objects = models.Manager()
+ 
+Index: AppBuilder9000/RestaurantApp/forms.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from django.forms import ModelForm, CheckboxInput, RadioSelect\r\nfrom .models import Restaurant\r\n\r\n\r\nclass RestaurantForm(ModelForm):\r\n    class Meta:\r\n        model = Restaurant\r\n        fields = '__all__'
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/forms.py	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/forms.py	(date 1600824271136)
+@@ -5,4 +5,11 @@
+ class RestaurantForm(ModelForm):
+     class Meta:
+         model = Restaurant
+-        fields = '__all__'
+\ No newline at end of file
++        fields = '__all__'
++        widgets = {
++            'rating': RadioSelect(),
++            'price': RadioSelect(),
++            'delivery': RadioSelect(),
++            'take_out': RadioSelect(),
++            'outdoor_seating': RadioSelect(),
++        }
+\ No newline at end of file
+Index: AppBuilder9000/RestaurantApp/static/RestaurantApp/css/RestaurantApp_custom.css
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>body {\r\n    text-align: center;\r\n}\r\n\r\n\r\n/* HOME */\r\n/* image carousel on homepage */\r\n#homecarousel {\r\n    position: fixed;\r\n    z-index: -10;\r\n}\r\n\r\n/* ensure entire background is covered and responsive */\r\n.carousel-item img {\r\n    height: 100vh;\r\n    object-fit: cover;\r\n}\r\n\r\n#myjumbotron {\r\n    color: white;\r\n    background-color: rgba(0,0,0,.35);\r\n    margin-top: 7%;\r\n    width: 50%;\r\n    border-radius: 20px;\r\n}\r\n\r\n@media only screen and (max-width: 775px) {\r\n    #myjumbotron {\r\n        width: 75%;\r\n    }\r\n}\r\n\r\n/* title of jumbotron in home.html */\r\n.display-2 {\r\n    font-weight: bold;\r\n    margin-top: -3%;\r\n}\r\n\r\n/* whoops message */\r\n.whoopsmsg {\r\n    border-radius: 5px;\r\n}\r\n\r\n/* removing border around search by city (so it conncts with button better) */\r\n.noborders {\r\n    border: none;\r\n    outline-color: rgba(0,0,0,0);\r\n}\r\n\r\n/*!!!!!AFFECTS ALL FORM FIELDS!!!!!!! changing highlight/focus color to grey*/\r\n.form-control:focus {\r\n    border-color: darkgrey;\r\n    box-shadow: 0 0 0 0.2rem rgba(0,0,0, 0.15);\r\n}\r\n\r\n\r\n\r\n/* SEARCH PAGE */\r\n/* city shown at top of search.html */\r\n.mycontainer {\r\n    margin-top: 2.5%;\r\n}\r\n\r\n.citytitle {\r\n    color: indianred;\r\n    font-weight: bold;\r\n}\r\n\r\n/* spacing for filters */\r\n.form-group {\r\n    margin-top: 2.5%;\r\n    margin-bottom: 2.5%;\r\n}\r\n\r\n/* spacing between list/map views and contents */\r\n#listswitch, #mapswitch {\r\n    margin-top: 3%;\r\n}\r\n\r\n/* cards in search.html */\r\n.hover {\r\n    transition: transform .5s, box-shadow .5s;\r\n}\r\n\r\n.hover:hover {\r\n    transform: scale(1.03);\r\n    box-shadow: 2px 2px 6px 3px rgba(0, 0, 0, 0.15);\r\n}\r\n\r\n/* images of cards in search.html */\r\n.cardimgs {\r\n    object-fit: cover;\r\n}\r\n\r\n/* unused money signs of cards in search.html*/\r\n.transparentmoney {\r\n    color: rgba(0,0,0,.2);\r\n}\r\n\r\n/* details panel of cards in search.html */\r\n.card-img-overlay {\r\n    background-color: rgba(100, 105, 110, .95);\r\n    background: linear-gradient(to right, transparent 1%, rgb(100, 105, 110));\r\n    color: white;\r\n}\r\n\r\n/* info button on cards in search.html */\r\n.info_button_placement {\r\n    margin-left: 75%;\r\n    margin-top: -5%;\r\n}\r\n\r\n/* save to MyList button in search.html and Menu buttons in search.html and show.html */\r\n.btn-outline-danger {\r\n    color: indianred;\r\n    border-color: indianred;\r\n}\r\n\r\n.btn-outline-danger:hover {\r\n    background-color: indianred;\r\n    border-color: indianred;\r\n}\r\n\r\n.mylist_button_placement {\r\n    margin-left: -65%;\r\n    margin-top: -8%;\r\n}\r\n\r\n/* card titles in search.html */\r\n.mycardspacing {\r\n    margin-top: -3%;\r\n    margin-left: 1%;\r\n}\r\n\r\n.mycardtitle {\r\n    color: indianred;\r\n    font-weight: bold;\r\n    transition: color .5s;\r\n}\r\n\r\n.mycardtitle:hover {\r\n    color: #d58512;\r\n}\r\n\r\n/* checkmark displays underneath menu and hours buttons in search.html*/\r\n.myhighlights p {\r\n    font-size: .85em;\r\n    margin-bottom: -3%;\r\n}\r\n\r\n/* taking away background color on hours */\r\n#mycardhours:hover {\r\n    background-color: rgba(0,0,0,0);\r\n}\r\n\r\n/* star rating of cards in search.html */\r\n.starspacing {\r\n    margin-top: -2%;\r\n}\r\n\r\n\r\n/* MYLIST */\r\n.mylisttitle {\r\n    color: indianred;\r\n    font-weight: bold;\r\n}\r\n\r\n/* changes color from bootstraps secondary (grey) to red in show.html, details.html and edit.html */\r\n.deletechange:hover {\r\n    background-color: crimson;\r\n    border-color: crimson;\r\n}\r\n\r\n/* changes color from bootstraps secondary (grey) to gold in edit.html and add.html */\r\n.submitchange:hover {\r\n    background-color: #EBA24F;\r\n    border-color: #EBA24F;\r\n}\r\n\r\n\r\n/* DELETE MODALS */\r\n/* delete button in confirmation modals */\r\n.deletemodalbutton {\r\n    color: crimson;\r\n    border-color: crimson;\r\n}\r\n\r\n.deletemodalbutton:hover {\r\n    color: white;\r\n    background-color: crimson;\r\n    border-color: crimson;\r\n}\r\n\r\n.mydeletetitle {\r\n    color: crimson;\r\n    font-weight: bold;\r\n}\r\n\r\n\r\n/* labels on details.html, edit.html, add.html */\r\n.mylistlabels label {\r\n    font-weight: bold;\r\n}\r\n\r\n\r\n/* changing color of MyComments placeholder in add.html */\r\n#user_comments::placeholder {\r\n  color: lightgrey;\r\n  opacity: 1;\r\n}\r\n\r\n#user_comments:-ms-input-placeholder {\r\n  color: lightgrey;\r\n}\r\n\r\n#user_comments::-ms-input-placeholder {\r\n  color: lightgrey;\r\n}\r\n\r\n\r\n/* FOOTER */\r\n/* this is to push the footer to the bottom */\r\n.entire_page_container {\r\n    min-height: 100vh;\r\n}\r\n\r\n.footer_buffer {\r\n    margin-bottom: 10%;\r\n}\r\n\r\n#footer {\r\n    color: lightslategrey;\r\n    font-size: 1em;\r\n    width: 100%;\r\n    bottom: 0;\r\n    margin-top: -2%;\r\n}\r\n\r\n#footer a {\r\n    color: inherit;\r\n    text-decoration-color: inherit;\r\n    transition: color .3s, text-decoration-color .3s;\r\n}\r\n\r\n#footer a:hover {\r\n    color: #31b0d5;\r\n    text-decoration-color: #31b0d5;\r\n}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/static/RestaurantApp/css/RestaurantApp_custom.css	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/static/RestaurantApp/css/RestaurantApp_custom.css	(date 1600824271158)
+@@ -41,48 +41,22 @@
+     border-radius: 5px;
+ }
+ 
+-/* removing border around search by city (so it conncts with button better) */
+-.noborders {
+-    border: none;
+-    outline-color: rgba(0,0,0,0);
+-}
+-
+-/*!!!!!AFFECTS ALL FORM FIELDS!!!!!!! changing highlight/focus color to grey*/
+-.form-control:focus {
+-    border-color: darkgrey;
+-    box-shadow: 0 0 0 0.2rem rgba(0,0,0, 0.15);
+-}
+ 
+ 
+ 
+ /* SEARCH PAGE */
+ /* city shown at top of search.html */
+-.mycontainer {
+-    margin-top: 2.5%;
+-}
+-
+ .citytitle {
+     color: indianred;
+     font-weight: bold;
+ }
+ 
+-/* spacing for filters */
+-.form-group {
+-    margin-top: 2.5%;
+-    margin-bottom: 2.5%;
+-}
+-
+-/* spacing between list/map views and contents */
+-#listswitch, #mapswitch {
+-    margin-top: 3%;
+-}
+-
+ /* cards in search.html */
+-.hover {
++.card {
+     transition: transform .5s, box-shadow .5s;
+ }
+ 
+-.hover:hover {
++.card:hover {
+     transform: scale(1.03);
+     box-shadow: 2px 2px 6px 3px rgba(0, 0, 0, 0.15);
+ }
+@@ -107,34 +81,15 @@
+ /* info button on cards in search.html */
+ .info_button_placement {
+     margin-left: 75%;
+-    margin-top: -5%;
+-}
+-
+-/* save to MyList button in search.html and Menu buttons in search.html and show.html */
+-.btn-outline-danger {
+-    color: indianred;
+-    border-color: indianred;
+-}
+-
+-.btn-outline-danger:hover {
+-    background-color: indianred;
+-    border-color: indianred;
+-}
+-
+-.mylist_button_placement {
+-    margin-left: -65%;
+-    margin-top: -8%;
++    margin-top: -10%;
+ }
+ 
+ /* card titles in search.html */
+-.mycardspacing {
+-    margin-top: -3%;
+-    margin-left: 1%;
+-}
+-
+ .mycardtitle {
+     color: indianred;
+     font-weight: bold;
++    margin-top: -3%;
++    margin-left: 1%;
+     transition: color .5s;
+ }
+ 
+@@ -159,63 +114,23 @@
+ }
+ 
+ 
+-/* MYLIST */
+-.mylisttitle {
+-    color: indianred;
+-    font-weight: bold;
+-}
+-
+-/* changes color from bootstraps secondary (grey) to red in show.html, details.html and edit.html */
+-.deletechange:hover {
+-    background-color: crimson;
+-    border-color: crimson;
+-}
+-
+-/* changes color from bootstraps secondary (grey) to gold in edit.html and add.html */
+-.submitchange:hover {
+-    background-color: #EBA24F;
+-    border-color: #EBA24F;
+-}
+-
+ 
+-/* DELETE MODALS */
+-/* delete button in confirmation modals */
+-.deletemodalbutton {
+-    color: crimson;
+-    border-color: crimson;
++/* SUGGEST/ADD PAGE */
++/* addTable class is applied to the suggest/add Restaurant form*/
++.addTable {
++    margin-left: auto;
++    margin-right: auto;
+ }
+ 
+-.deletemodalbutton:hover {
+-    color: white;
+-    background-color: crimson;
+-    border-color: crimson;
++.addTable li {
++    display: inline;
+ }
+ 
+-.mydeletetitle {
+-    color: crimson;
+-    font-weight: bold;
++/* This eliminates -------- as an option in the radio selections, but makes form still submittable*/
++.addTable li:first-child{
++    display: none;
+ }
+ 
+-
+-/* labels on details.html, edit.html, add.html */
+-.mylistlabels label {
+-    font-weight: bold;
+-}
+-
+-
+-/* changing color of MyComments placeholder in add.html */
+-#user_comments::placeholder {
+-  color: lightgrey;
+-  opacity: 1;
+-}
+-
+-#user_comments:-ms-input-placeholder {
+-  color: lightgrey;
+-}
+-
+-#user_comments::-ms-input-placeholder {
+-  color: lightgrey;
+-}
+ 
+ 
+ /* FOOTER */
+@@ -224,10 +139,6 @@
+     min-height: 100vh;
+ }
+ 
+-.footer_buffer {
+-    margin-bottom: 10%;
+-}
+-
+ #footer {
+     color: lightslategrey;
+     font-size: 1em;
+Index: AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_base.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% load static %}\r\n\r\n<!DOCTYPE html>\r\n<html lang=\"en\">\r\n\r\n    <head>\r\n        <!-- META -->\r\n        <meta charset=\"UTF-8\">\r\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, shrink-to-fit=no\">\r\n\r\n        <!-- Broswer Tab -->\r\n        <title>Dine-List</title>\r\n\r\n        <!-- Map CSS -->\r\n        <link rel=\"stylesheet\" type=\"text/css\" href=\"https://js.api.here.com/v3/3.1/mapsjs-ui.css\" />\r\n        <!-- Bootstrap CSS -->\r\n        <link href=\"https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css\" rel=\"stylesheet\" />\r\n        <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css\" integrity=\"sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z\" crossorigin=\"anonymous\">\r\n        <!-- Local/custom CSS -->\r\n        <link rel=\"stylesheet\" type=text/css href=\"{% static 'RestaurantApp/css/RestaurantApp_custom.css' %}\">\r\n\r\n        <!-- jquery needed to launch 'did you mean' modal in home.html -->\r\n        <script src=\"https://code.jquery.com/jquery-1.11.2.min.js\"></script>\r\n\r\n        <!-- javascript for map api -->\r\n        <script src=\"https://js.api.here.com/v3/3.1/mapsjs-core.js\" type=\"text/javascript\" charset=\"utf-8\"></script>\r\n        <script src=\"https://js.api.here.com/v3/3.1/mapsjs-service.js\" type=\"text/javascript\" charset=\"utf-8\"></script>\r\n        <script type=\"text/javascript\" src=\"https://js.api.here.com/v3/3.1/mapsjs-ui.js\"></script>\r\n        <script type=\"text/javascript\" src=\"https://js.api.here.com/v3/3.1/mapsjs-mapevents.js\"></script>\r\n    </head>\r\n\r\n    <body>\r\n        <div class=\"entire_page_container\">\r\n            <!-- Navbar -->\r\n            <nav class=\"navbar sticky-top navbar-expand-lg navbar-light bg-light\">\r\n              <a class=\"navbar-brand font-weight-bold\" href=\"{% url 'RestaurantHome' %}\" style=\"font-size: 1.5em;\">Dine-List</a>\r\n              <button class=\"navbar-toggler\" type=\"button\" data-toggle=\"collapse\" data-target=\"#navbarNavDropdown\" aria-controls=\"navbarNavDropdown\" aria-expanded=\"false\" aria-label=\"Toggle navigation\">\r\n                <span class=\"navbar-toggler-icon\"></span>\r\n              </button>\r\n              <div class=\"collapse navbar-collapse\" id=\"navbarNavDropdown\">\r\n                  <ul class=\"navbar-nav\">\r\n                      <li class=\"nav-item\">\r\n                            <a class=\"nav-link font-weight-bold\" href=\"{% url 'RestaurantShow' %}\" style=\"font-size: 1.2em;\">MyList</a>\r\n                      </li>\r\n                  </ul>\r\n                  <ul class=\"navbar-nav ml-auto\">\r\n                      <li class=\"nav-item\">\r\n                            <a class=\"nav-link\" href=\"{% url 'RestaurantAdd' %}\" style=\"font-size: 1.05em;\">Can't find your favorite restaurant?</a>\r\n                      </li>\r\n                  </ul>\r\n              </div>\r\n            </nav>\r\n\r\n\r\n    <!-- other html pages -->\r\n        {% block content %}\r\n\r\n        {% endblock %}\r\n        </div>\r\n\r\n        <!-- Footer -->\r\n        <footer id=\"footer\">\r\n            &copy; 2020 Copyright | <a href=\"http://haydenstark.github.io/\">Hayden Stark</a>\r\n        </footer>\r\n    </body>\r\n\r\n    <!-- Bootsrap JS -->\r\n    <script src=\"https://code.jquery.com/jquery-3.5.1.slim.min.js\" integrity=\"sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj\" crossorigin=\"anonymous\"></script>\r\n    <script src=\"https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js\" integrity=\"sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN\" crossorigin=\"anonymous\"></script>\r\n    <script src=\"https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js\" integrity=\"sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV\" crossorigin=\"anonymous\"></script>\r\n\r\n</html>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_base.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_base.html	(date 1600824271177)
+@@ -29,29 +29,29 @@
+         <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js"></script>
+     </head>
+ 
++
+     <body>
+         <div class="entire_page_container">
+             <!-- Navbar -->
+             <nav class="navbar sticky-top navbar-expand-lg navbar-light bg-light">
+-              <a class="navbar-brand font-weight-bold" href="{% url 'RestaurantHome' %}" style="font-size: 1.5em;">Dine-List</a>
++              <a class="navbar-brand" href="{% url 'RestaurantHome' %}"><h3>Dine-List</h3></a>
+               <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                 <span class="navbar-toggler-icon"></span>
+               </button>
+               <div class="collapse navbar-collapse" id="navbarNavDropdown">
+-                  <ul class="navbar-nav">
+-                      <li class="nav-item">
+-                            <a class="nav-link font-weight-bold" href="{% url 'RestaurantShow' %}" style="font-size: 1.2em;">MyList</a>
+-                      </li>
+-                  </ul>
+-                  <ul class="navbar-nav ml-auto">
+-                      <li class="nav-item">
+-                            <a class="nav-link" href="{% url 'RestaurantAdd' %}" style="font-size: 1.05em;">Can't find your favorite restaurant?</a>
+-                      </li>
+-                  </ul>
++                <ul class="navbar-nav">
++                    <li class="nav-item">
++                        <a class="nav-link font-weight-bold" href="{% url 'RestaurantShow' %}">My List</a>
++                    </li>
++                    <li class="nav-item">
++                        <a class="nav-link font-weight-bold" href="{% url 'RestaurantAdd' %}">Suggest<span class="sr-only">(current)</span></a>
++                    </li>
++                </ul>
+               </div>
+             </nav>
+ 
+ 
++
+     <!-- other html pages -->
+         {% block content %}
+ 
+Index: AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_show.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% extends 'RestaurantApp/RestaurantApp_base.html' %}\r\n\r\n{% load staticfiles %}\r\n\r\n{% block content %}\r\n\r\n<!-- HEADING -->\r\n<h1 class=\"mylisttitle mycontainer\">MyList</h1>\r\n<h4 class=\"text-muted mt-3 mb-4\">Save and reference your favorite restaurants!</h4>\r\n<hr class=\"my-4 w-75\">\r\n\r\n        <!-- successful save message if form submitted -->\r\n        {% for message in messages %}\r\n                    <div class=\"alert alert-secondary col w-50 mx-auto whoopsmsg\">\r\n                        <a class=\"close\" href=\"#\" data-dismiss=\"alert\">×</a>\r\n                        <h4>Success!</h4>\r\n                        <h6>{{ message }}</h6>\r\n                    </div>\r\n        {% endfor %}\r\n\r\n<!-- displays a list of all restaurants saved locally in database -->\r\n<div class=\"footer_buffer\">\r\n    <div class=\"container-fluid footer_buffer\">\r\n        {% for restaurant in restaurants %}\r\n                                        <!-- Delete Confirmation Modal -->\r\n                                <div class=\"modal fade\" id=\"delete{{ restaurant.pk }}\" tabindex=\"-1\" aria-labelledby=\"deleteModalLabel\" aria-hidden=\"true\">\r\n                                  <div class=\"modal-dialog modal-dialog-centered\">\r\n                                    <div class=\"modal-content\">\r\n                                      <div class=\"modal-header\">\r\n                                        <h3 class=\"modal-title mydeletetitle\" id=\"deleteModalLabel\">Confirm Delete</h3>\r\n                                        <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-label=\"Close\">\r\n                                          <span aria-hidden=\"true\">&times;</span>\r\n                                        </button>\r\n                                      </div>\r\n                                      <div class=\"modal-body\">\r\n                                          <h5 class=\"w-75 mx-auto\">Are you sure you want to remove <br><span id=\"\" class=\"mylisttitle\">{{ restaurant.name|title }}</span> from MyList?</h5>\r\n                                      </div>\r\n                                      <div class=\"modal-footer\">\r\n                                          <button type=\"button\" class=\"btn btn-outline-secondary\" data-dismiss=\"modal\">Cancel</button>\r\n                                          <button type=\"submit\" class=\"btn btn-outline-danger deletemodalbutton\" onclick=\"deleteForm(this)\" name=\"hiddenForm{{ restaurant.pk }}\">Delete</button>\r\n                                      </div>                                                        <!-- ^ triggering delete function,  ^keeping track of which restaurant we're deleting and which form to target -->\r\n                                    </div>\r\n                                  </div>\r\n                                </div>\r\n        <div class=\"card mt-5 w-75 mx-auto hover\">\r\n            <div class=\"row no-gutters\">\r\n                <div class=\"col-md-4\">\r\n                    {% if restaurant.img is not None %}\r\n                    <img src=\"{{ restaurant.img }}\" height=\"300px\" class=\"card-img cardimgs\" alt=\"(Not displaying or image url is corrupt)\" style=\"min-height: 100%;\">\r\n                    {% else %}\r\n                    <img src=\"{% static 'RestaurantApp/imgs/test_matheus-frade-unsplash.jpg' %}\" height=\"300px\" class=\"card-img cardimgs\" alt=\"No saved image\" style=\"min-height: 100%;\">\r\n                    {% endif %}\r\n                </div>\r\n                <div class=\"col-md-8\">\r\n                    <div class=\"card-body text-left\">\r\n                            <div class=\"col-md-6 offset-md-6 text-right pr-0\">\r\n                                <div class=\"btn-group\" role=\"group\">\r\n                                    <button type=\"button\" class=\"btn btn-sm btn-outline-secondary\" onclick=\"window.location.href='details/{{ restaurant.pk }}'\">Details</button>\r\n                                    <button type=\"button\" class=\"btn btn-sm btn-outline-secondary\" onclick=\"window.location.href='details/edit/{{ restaurant.pk }}'\">Edit</button>\r\n                                    <button type=\"button\" class=\"btn btn-sm btn-outline-secondary deletechange\" data-toggle=\"modal\" data-target=\"#delete{{ restaurant.pk }}\">Remove</button>\r\n                                </div>\r\n                        </div>\r\n                        <!-- NAME -->\r\n                        {% if restaurant.url %}\r\n                        <h2 class=\"card-title\"><a class=\"text-decoration-none mycardtitle\" href=\"{{ restaurant.url }}\">{{ restaurant.name|title }}</a></h2>\r\n                        {% else %}\r\n                        <h2 class=\"card-title mylisttitle\">{{ restaurant.name|title }}</h2>\r\n                        {% endif %}\r\n                        <!-- CUISINE AND COST -->\r\n                        <div class=\"card-text text-left text-black-50\">{% if restaurant.pricerange %}{% if restaurant.pricerange is 1 %}<span class=\"text-black-50\">$</span><span class=\"transparentmoney\">$$$</span>\r\n                            {% elif restaurant.pricerange is 2 %}<span class=\"text-black-50\">$$</span><span class=\"transparentmoney\">$$</span>\r\n                            {% elif restaurant.pricerange is 3 %}<span class=\"text-black-50\">$$$</span><span class=\"transparentmoney\">$</span>\r\n                            {% else %}<span class=\"text-black-50\">$$$$</span> {% endif %}               <svg width=\".4em\" height=\".4em\" viewBox=\"0 0 16 16\" class=\"bi bi-circle-fill text-black-50\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"8\" r=\"8\"/></svg> {% endif %}\r\n                            {% if restaurant.cuisines %}{{ restaurant.cuisines }}                                                   <svg width=\".4em\" height=\".4em\" viewBox=\"0 0 16 16\" class=\"bi bi-circle-fill text-black-50\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"8\" r=\"8\"/></svg> {% endif %}\r\n                            {% if restaurant.establishment %}{{ restaurant.establishment }}{% endif %}\r\n                        </div>\r\n                        <!-- STAR RATING AND RATINGS TEXT-->\r\n                        {% if restaurant.rating %}\r\n                        <div class=\"text-left text-black-50\"><b><span id=\"stars{{ restaurant.id }}\" title=\"{{ restaurant.rating }}\"></span></b> {{ restaurant.rating }} &nbsp;voted by {{ restaurant.votes }} others - \"{{ restaurant.rating_text }}\"</div>\r\n                        {% endif %}\r\n                        <!-- AVG COST -->\r\n                        {% if avgfortwo %}\r\n                        <div class=\"text-black-50\">Avg. cost for two: &nbsp;${{ restaurant.avgfortwo }}</div>\r\n                        {% endif %}\r\n                        <!-- TAKEAWAY/DELIVERY/FOOD OPTIONS -->\r\n                        <div class=\"text-black-50 col mt-2\">\r\n                        {% if restaurant.takeaway %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Takeaway &nbsp;</div>{% endif %}\r\n                        {% if restaurant.delivery %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Delivery &nbsp;</div>{% endif %}\r\n                        {% if restaurant.vegetarian %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Vegetarian Options &nbsp;</div>{% endif %}\r\n                        {% if restaurant.vegan %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Vegan Options &nbsp;</div>{% endif %}\r\n                        {% if restaurant.gluten_free %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Gluten Free Options </div>{% endif %}\r\n                        </div>\r\n                        <!-- MYRATING AND MENU BUTTON --><br>\r\n                        {% if restaurant.user_rating %}\r\n                        <div class=\"row\">\r\n                            <div class=\"col-md-6 text-center\">\r\n                                <div class=\"text-muted font-weight-bold\" style=\"font-size: 1.25em;\">MyRating</div>\r\n                                <div class=\"text-muted\"><b><span id=\"myrating{{ restaurant.id }}\" title=\"{{ restaurant.user_rating }}\" style=\"font-size: 1.6em;\"></span></b></div>\r\n                                <div class=\"text-muted\" style=\"font-size: .9em;\">You gave this restaurant: &nbsp;<span class=\"text-nowrap\"><span class=\"font-weight-bold\" style=\"font-size: 1.15em;\">{{ restaurant.user_rating }}</span> stars!</span></div>\r\n                            </div>\r\n                            {% if restaurant.menu %}\r\n                            <div class=\"col-md-6 text-right\">\r\n                                <div class=\"btn-group w-50 mt-4\" role=\"group\">\r\n                                    <button type=\"button\" class=\"btn btn-lg btn-outline-danger font-weight-bold\" onclick=\"window.location.href='{{ restaurant.menu }}'\">Menu</button>\r\n                                </div>\r\n                            </div>\r\n                            {% endif %}\r\n                        </div>\r\n                        {% elif restaurant.menu %}\r\n                            <div class=\"col-md-6 offset-md-6 text-right pr-0\">\r\n                                <div class=\"btn-group w-50 mt-4\" role=\"group\">\r\n                                    <button type=\"button\" class=\"btn btn-lg btn-outline-danger font-weight-bold\" onclick=\"window.location.href='{{ restaurant.menu }}'\">Menu</button>\r\n                                </div>\r\n                            </div>\r\n                        {% endif %}\r\n                    </div>\r\n                </div>\r\n            </div>\r\n        </div>\r\n        <!-- javascript for star rating, unfortunately has to be included in the for loop -->\r\n            <script>\r\n                var stars = document.getElementById(\"stars{{ restaurant.id }}\").title\r\n                document.getElementById(\"stars{{ restaurant.id }}\").innerHTML = getStars(stars);\r\n                function getStars(rating) {\r\n                    // Round to nearest half\r\n                    rating = Math.round(rating * 2) / 2;\r\n                    let output = [];\r\n                    // Append all the filled whole stars\r\n                    for (var i = rating; i >= 1; i--)\r\n                        output.push('<i class=\"fa fa-star text-left\" aria-hidden=\"true\" style=\"color: silver;\"></i>&nbsp;');\r\n                    // If there is a half a star, append it\r\n                    if (i == .5) output.push('<i class=\"fa fa-star-half-o text-left\" aria-hidden=\"true\" style=\"color: silver;\"></i>&nbsp;');\r\n                    // Fill the empty stars\r\n                    for (let i = (5 - rating); i >= 1; i--)\r\n                        output.push('<i class=\"fa fa-star-o text-left\" aria-hidden=\"true\" style=\"color: silver;\"></i>&nbsp;');\r\n                    return output.join('');\r\n                }\r\n            </script>\r\n        <!-- javascript for MyRating -->\r\n            <script>\r\n                var stars = document.getElementById(\"myrating{{ restaurant.id }}\").title\r\n                document.getElementById(\"myrating{{ restaurant.id }}\").innerHTML = getStars(stars);\r\n                function getStars(rating) {\r\n                    // Round to nearest half\r\n                    rating = Math.round(rating * 2) / 2;\r\n                    let output = [];\r\n                    // Append all the filled whole stars\r\n                    for (var i = rating; i >= 1; i--)\r\n                        output.push('<i class=\"fa fa-star text-left\" aria-hidden=\"true\" style=\"color: gold;\"></i>&nbsp;');\r\n                    // If there is a half a star, append it\r\n                    if (i == .5) output.push('<i class=\"fa fa-star-half-o text-left\" aria-hidden=\"true\" style=\"color: gold;\"></i>&nbsp;');\r\n                    // Fill the empty stars\r\n                    for (let i = (5 - rating); i >= 1; i--)\r\n                        output.push('<i class=\"fa fa-star-o text-left\" aria-hidden=\"true\" style=\"color: gold;\"></i>&nbsp;');\r\n                    return output.join('');\r\n                }\r\n            </script>\r\n            <!-- DELETE FUNCTIONALITY -->\r\n            <!-- this additional form is hidden and holds the django url to start the delete function in views.py -->\r\n            <form id=\"hiddenForm{{ restaurant.pk }}\" action=\"{% url 'RestaurantMyListDelete' restaurant.pk %}\" method=\"POST\">\r\n                {% csrf_token %}\r\n            </form>\r\n        {% endfor %}\r\n    </div>\r\n</div>\r\n\r\n{% if restaurants|length < 1 %}\r\n<div class=\"container-fluid\">\r\n    <h1 class=\"text-muted\">Uh oh!</h1>\r\n    <h3 class=\"text-muted\">Looks like you don't have any restaurants saved... </h3>\r\n    <h3 class=\"text-muted\">Search restaurants from the <a class=\"mycardtitle\" href=\"{% url 'RestaurantHome' %}\" style=\"margin-left: 0;\">home</a> page and use the <span class=\"mylisttitle\">'Save to MyList'</span> button to send them here!</h3>\r\n</div>\r\n{% endif %}\r\n\r\n\r\n<!-- this is a completely brute force way of dealing with the footer, but I will not let it win-->\r\n{% if restaurants|length < 2 %}\r\n<h1 style=\"visibility: hidden;\">I NEED THIS FOOTER TO STAY ON THE BOTTOM</h1>\r\n{% endif %}\r\n\r\n<!-- javascript attached to the modal delete button so that the hidden form can actually be submitted -->\r\n<script type=\"text/javascript\">\r\n    function deleteForm(elem) {document.getElementById(elem.name).submit();}\r\n</script>\r\n\r\n{% endblock %}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_show.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_show.html	(date 1600824271201)
+@@ -4,183 +4,46 @@
+ 
+ {% block content %}
+ 
+-<!-- HEADING -->
+-<h1 class="mylisttitle mycontainer">MyList</h1>
+-<h4 class="text-muted mt-3 mb-4">Save and reference your favorite restaurants!</h4>
+-<hr class="my-4 w-75">
++<!-- displays a list of all restaurants in database
++        divs and classes are for layout (bootstrap) -->
+ 
+-        <!-- successful save message if form submitted -->
+-        {% for message in messages %}
+-                    <div class="alert alert-secondary col w-50 mx-auto whoopsmsg">
+-                        <a class="close" href="#" data-dismiss="alert">×</a>
+-                        <h4>Success!</h4>
+-                        <h6>{{ message }}</h6>
+-                    </div>
+-        {% endfor %}
++<h1>Restaurants</h1><br>
+ 
+-<!-- displays a list of all restaurants saved locally in database -->
+-<div class="footer_buffer">
+-    <div class="container-fluid footer_buffer">
+-        {% for restaurant in restaurants %}
+-                                        <!-- Delete Confirmation Modal -->
+-                                <div class="modal fade" id="delete{{ restaurant.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+-                                  <div class="modal-dialog modal-dialog-centered">
+-                                    <div class="modal-content">
+-                                      <div class="modal-header">
+-                                        <h3 class="modal-title mydeletetitle" id="deleteModalLabel">Confirm Delete</h3>
+-                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+-                                          <span aria-hidden="true">&times;</span>
+-                                        </button>
+-                                      </div>
+-                                      <div class="modal-body">
+-                                          <h5 class="w-75 mx-auto">Are you sure you want to remove <br><span id="" class="mylisttitle">{{ restaurant.name|title }}</span> from MyList?</h5>
+-                                      </div>
+-                                      <div class="modal-footer">
+-                                          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+-                                          <button type="submit" class="btn btn-outline-danger deletemodalbutton" onclick="deleteForm(this)" name="hiddenForm{{ restaurant.pk }}">Delete</button>
+-                                      </div>                                                        <!-- ^ triggering delete function,  ^keeping track of which restaurant we're deleting and which form to target -->
+-                                    </div>
+-                                  </div>
+-                                </div>
+-        <div class="card mt-5 w-75 mx-auto hover">
+-            <div class="row no-gutters">
+-                <div class="col-md-4">
+-                    {% if restaurant.img is not None %}
+-                    <img src="{{ restaurant.img }}" height="300px" class="card-img cardimgs" alt="(Not displaying or image url is corrupt)" style="min-height: 100%;">
+-                    {% else %}
+-                    <img src="{% static 'RestaurantApp/imgs/test_matheus-frade-unsplash.jpg' %}" height="300px" class="card-img cardimgs" alt="No saved image" style="min-height: 100%;">
+-                    {% endif %}
+-                </div>
+-                <div class="col-md-8">
+-                    <div class="card-body text-left">
+-                            <div class="col-md-6 offset-md-6 text-right pr-0">
+-                                <div class="btn-group" role="group">
+-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.href='details/{{ restaurant.pk }}'">Details</button>
+-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.href='details/edit/{{ restaurant.pk }}'">Edit</button>
+-                                    <button type="button" class="btn btn-sm btn-outline-secondary deletechange" data-toggle="modal" data-target="#delete{{ restaurant.pk }}">Remove</button>
+-                                </div>
+-                        </div>
+-                        <!-- NAME -->
+-                        {% if restaurant.url %}
+-                        <h2 class="card-title"><a class="text-decoration-none mycardtitle" href="{{ restaurant.url }}">{{ restaurant.name|title }}</a></h2>
+-                        {% else %}
+-                        <h2 class="card-title mylisttitle">{{ restaurant.name|title }}</h2>
+-                        {% endif %}
+-                        <!-- CUISINE AND COST -->
+-                        <div class="card-text text-left text-black-50">{% if restaurant.pricerange %}{% if restaurant.pricerange is 1 %}<span class="text-black-50">$</span><span class="transparentmoney">$$$</span>
+-                            {% elif restaurant.pricerange is 2 %}<span class="text-black-50">$$</span><span class="transparentmoney">$$</span>
+-                            {% elif restaurant.pricerange is 3 %}<span class="text-black-50">$$$</span><span class="transparentmoney">$</span>
+-                            {% else %}<span class="text-black-50">$$$$</span> {% endif %}               <svg width=".4em" height=".4em" viewBox="0 0 16 16" class="bi bi-circle-fill text-black-50" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8"/></svg> {% endif %}
+-                            {% if restaurant.cuisines %}{{ restaurant.cuisines }}                                                   <svg width=".4em" height=".4em" viewBox="0 0 16 16" class="bi bi-circle-fill text-black-50" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8"/></svg> {% endif %}
+-                            {% if restaurant.establishment %}{{ restaurant.establishment }}{% endif %}
+-                        </div>
+-                        <!-- STAR RATING AND RATINGS TEXT-->
+-                        {% if restaurant.rating %}
+-                        <div class="text-left text-black-50"><b><span id="stars{{ restaurant.id }}" title="{{ restaurant.rating }}"></span></b> {{ restaurant.rating }} &nbsp;voted by {{ restaurant.votes }} others - "{{ restaurant.rating_text }}"</div>
+-                        {% endif %}
+-                        <!-- AVG COST -->
+-                        {% if avgfortwo %}
+-                        <div class="text-black-50">Avg. cost for two: &nbsp;${{ restaurant.avgfortwo }}</div>
+-                        {% endif %}
+-                        <!-- TAKEAWAY/DELIVERY/FOOD OPTIONS -->
+-                        <div class="text-black-50 col mt-2">
+-                        {% if restaurant.takeaway %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Takeaway &nbsp;</div>{% endif %}
+-                        {% if restaurant.delivery %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Delivery &nbsp;</div>{% endif %}
+-                        {% if restaurant.vegetarian %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Vegetarian Options &nbsp;</div>{% endif %}
+-                        {% if restaurant.vegan %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Vegan Options &nbsp;</div>{% endif %}
+-                        {% if restaurant.gluten_free %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Gluten Free Options </div>{% endif %}
+-                        </div>
+-                        <!-- MYRATING AND MENU BUTTON --><br>
+-                        {% if restaurant.user_rating %}
+-                        <div class="row">
+-                            <div class="col-md-6 text-center">
+-                                <div class="text-muted font-weight-bold" style="font-size: 1.25em;">MyRating</div>
+-                                <div class="text-muted"><b><span id="myrating{{ restaurant.id }}" title="{{ restaurant.user_rating }}" style="font-size: 1.6em;"></span></b></div>
+-                                <div class="text-muted" style="font-size: .9em;">You gave this restaurant: &nbsp;<span class="text-nowrap"><span class="font-weight-bold" style="font-size: 1.15em;">{{ restaurant.user_rating }}</span> stars!</span></div>
+-                            </div>
+-                            {% if restaurant.menu %}
+-                            <div class="col-md-6 text-right">
+-                                <div class="btn-group w-50 mt-4" role="group">
+-                                    <button type="button" class="btn btn-lg btn-outline-danger font-weight-bold" onclick="window.location.href='{{ restaurant.menu }}'">Menu</button>
+-                                </div>
+-                            </div>
+-                            {% endif %}
+-                        </div>
+-                        {% elif restaurant.menu %}
+-                            <div class="col-md-6 offset-md-6 text-right pr-0">
+-                                <div class="btn-group w-50 mt-4" role="group">
+-                                    <button type="button" class="btn btn-lg btn-outline-danger font-weight-bold" onclick="window.location.href='{{ restaurant.menu }}'">Menu</button>
+-                                </div>
+-                            </div>
+-                        {% endif %}
+-                    </div>
+-                </div>
+-            </div>
+-        </div>
+-        <!-- javascript for star rating, unfortunately has to be included in the for loop -->
+-            <script>
+-                var stars = document.getElementById("stars{{ restaurant.id }}").title
+-                document.getElementById("stars{{ restaurant.id }}").innerHTML = getStars(stars);
+-                function getStars(rating) {
+-                    // Round to nearest half
+-                    rating = Math.round(rating * 2) / 2;
+-                    let output = [];
+-                    // Append all the filled whole stars
+-                    for (var i = rating; i >= 1; i--)
+-                        output.push('<i class="fa fa-star text-left" aria-hidden="true" style="color: silver;"></i>&nbsp;');
+-                    // If there is a half a star, append it
+-                    if (i == .5) output.push('<i class="fa fa-star-half-o text-left" aria-hidden="true" style="color: silver;"></i>&nbsp;');
+-                    // Fill the empty stars
+-                    for (let i = (5 - rating); i >= 1; i--)
+-                        output.push('<i class="fa fa-star-o text-left" aria-hidden="true" style="color: silver;"></i>&nbsp;');
+-                    return output.join('');
+-                }
+-            </script>
+-        <!-- javascript for MyRating -->
+-            <script>
+-                var stars = document.getElementById("myrating{{ restaurant.id }}").title
+-                document.getElementById("myrating{{ restaurant.id }}").innerHTML = getStars(stars);
+-                function getStars(rating) {
+-                    // Round to nearest half
+-                    rating = Math.round(rating * 2) / 2;
+-                    let output = [];
+-                    // Append all the filled whole stars
+-                    for (var i = rating; i >= 1; i--)
+-                        output.push('<i class="fa fa-star text-left" aria-hidden="true" style="color: gold;"></i>&nbsp;');
+-                    // If there is a half a star, append it
+-                    if (i == .5) output.push('<i class="fa fa-star-half-o text-left" aria-hidden="true" style="color: gold;"></i>&nbsp;');
+-                    // Fill the empty stars
+-                    for (let i = (5 - rating); i >= 1; i--)
+-                        output.push('<i class="fa fa-star-o text-left" aria-hidden="true" style="color: gold;"></i>&nbsp;');
+-                    return output.join('');
+-                }
+-            </script>
+-            <!-- DELETE FUNCTIONALITY -->
+-            <!-- this additional form is hidden and holds the django url to start the delete function in views.py -->
+-            <form id="hiddenForm{{ restaurant.pk }}" action="{% url 'RestaurantMyListDelete' restaurant.pk %}" method="POST">
+-                {% csrf_token %}
+-            </form>
+-        {% endfor %}
+-    </div>
+-</div>
+-
+-{% if restaurants|length < 1 %}
+-<div class="container-fluid">
+-    <h1 class="text-muted">Uh oh!</h1>
+-    <h3 class="text-muted">Looks like you don't have any restaurants saved... </h3>
+-    <h3 class="text-muted">Search restaurants from the <a class="mycardtitle" href="{% url 'RestaurantHome' %}" style="margin-left: 0;">home</a> page and use the <span class="mylisttitle">'Save to MyList'</span> button to send them here!</h3>
+-</div>
+-{% endif %}
+-
+-
+-<!-- this is a completely brute force way of dealing with the footer, but I will not let it win-->
+-{% if restaurants|length < 2 %}
+-<h1 style="visibility: hidden;">I NEED THIS FOOTER TO STAY ON THE BOTTOM</h1>
+-{% endif %}
+-
+-<!-- javascript attached to the modal delete button so that the hidden form can actually be submitted -->
+-<script type="text/javascript">
+-    function deleteForm(elem) {document.getElementById(elem.name).submit();}
+-</script>
++    {% for restaurant in list_of_restaurants %}
++        <a href="details/{{ restaurant.id }}" class="text-decoration-none indexItems">
++            <div class="row align-items-center">
++                <div class="col">
++                    <!-- potentially image included here -->
++                    <h2>{{ restaurant.name|title }}</h2>
++                </div>
++            </div>
++            <div class="row align-items-center">
++                <div class="col-4"></div>                           <!-- for spacing layout to center -->
++                <div class="col">
++                    Cuisine:
++                </div>
++                <div class="col">
++                    Rating:
++                </div>
++                <div class="col">
++                    Price:
++                </div>
++                <div class="col-4"></div>                           <!-- for spacing layout to center -->
++            </div>
++            <div class="row align-items-center">
++                <div class="col-4"></div>                           <!-- for spacing layout to center -->
++                <div class="col">
++                    {{ restaurant.cuisine }}
++                </div>
++                <div class="col">
++                    {% if restaurant.rating is not None %} {{ restaurant.rating }}/5 {% else %}n/a{% endif %}
++                </div>
++                <div class="col">
++                    {% if restaurant.price is not None %} {{ restaurant.price }} {% else %}n/a{% endif %}
++                </div>
++                <div class="col-4"></div>                           <!-- for spacing layout to center -->
++            </div><br><br>
++        </a>
++    {% endfor %}
+ 
+ {% endblock %}
+\ No newline at end of file
+Index: AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_add.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% extends 'RestaurantApp/RestaurantApp_base.html' %}\r\n\r\n{% load staticfiles %}\r\n\r\n{% block content %}\r\n\r\n<h1 class=\"text-muted mycontainer\">Add your favorite restaurant to <span class=\"mylisttitle\">MyList</span>!</h1>\r\n<h6 class=\"text-muted mt-4\">We're so sorry we couldn't find your restaurant in our database...</h6>\r\n<h6 class=\"text-muted mb-4\">Submit this form to store it locally alongside your other favorites!</h6>\r\n<hr class=\"my-4 w-75\">\r\n\r\n\r\n        <!-- error message if form is submitted but still invalid -->\r\n        {% for message in messages %}\r\n                    <div class=\"alert alert-warning col w-75 mx-auto whoopsmsg\">\r\n                        <a class=\"close\" href=\"#\" data-dismiss=\"alert\">×</a>\r\n                        <h4>Save unsuccessful</h4>\r\n                        <h6>{{ message }}</h6>\r\n                    </div>\r\n        {% endfor %}\r\n\r\n\r\n<!-- form starts before buttons at top of page so they can be used to submit -->\r\n<form method=\"POST\">\r\n    {% csrf_token %}\r\n    <button type=\"submit\" class=\"btn btn-lg btn-outline-secondary submitchange mx-auto mt-4 mb-4 w-50\">Submit</button>\r\n\r\n\r\n\r\n    <!-- displays a list of all restaurants saved locally in database -->\r\n    <div class=\"container-fluid footer_buffer\">\r\n        <div class=\"card w-75 mt-5 mx-auto\">\r\n            <div class=\"row no-gutters\">\r\n                <!-- TOP SECTION -->\r\n                <div class=\"col-md-5\">\r\n                    <img id=\"editimg\" src=\"{% static 'RestaurantApp/imgs/test_matheus-frade-unsplash.jpg' %}\" height=\"375px\" class=\"card-img cardimgs\" alt=\"Placeholder image (currently not displaying)\">\r\n                </div>\r\n                <div class=\"col-md-7\">\r\n                    <div class=\"card-body text-left mylistlabels\">\r\n                            <small class=\"text-muted\">Only required fields are Restaurant Name* and Address*</small><br>\r\n                            <small class=\"text-muted\">This photo is just a placeholder - we highly encourage you to add your own!</small><br>\r\n                            <small class=\"text-muted\">To add a photo, use the Link to Restaurant's Image field</small>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"name\">Restaurant Name*</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"name\" id=\"name\" maxlength=\"255\" required>\r\n                        </div>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"cuisines\">Cuisine(s)</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"cuisines\" id=\"cuisines\" maxlength=\"255\">\r\n                            <small class=\"text-muted\">Use commas to separate cuisines, ie: &nbsp;Burgers, American</small>\r\n                        </div>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"pricerange\">Price range</label>\r\n                            <div id=\"pricerange\">\r\n                                <div class=\"form-check form-check-inline ml-3\">\r\n                                    <input class=\"form-check-input\" type=\"radio\" name=\"pricerange\" id=\"$\" value=\"1\">\r\n                                    <label class=\"form-check-label\" for=\"$\">$</label>\r\n                                </div>\r\n                                <div class=\"form-check form-check-inline\">\r\n                                    <input class=\"form-check-input\" type=\"radio\" name=\"pricerange\" id=\"$$\" value=\"2\">\r\n                                    <label class=\"form-check-label\" for=\"$\">$$</label>\r\n                                </div>\r\n                                <div class=\"form-check form-check-inline\">\r\n                                    <input class=\"form-check-input\" type=\"radio\" name=\"pricerange\" id=\"$$$\" value=\"3\">\r\n                                    <label class=\"form-check-label\" for=\"$\">$$$</label>\r\n                                </div>\r\n                                <div class=\"form-check form-check-inline\">\r\n                                    <input class=\"form-check-input\" type=\"radio\" name=\"pricerange\" id=\"$$$$\" value=\"4\">\r\n                                    <label class=\"form-check-label\" for=\"$\">$$$$</label>\r\n                                </div>\r\n                            </div>\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n                <!-- MAIN BODY SECTION -->\r\n                <div class=\"col-md-12\">\r\n                    <div class=\"card-body text-left mylistlabels\">\r\n                        <div class=\"form-row\">\r\n                            <div class=\"form-group col-md-6\">\r\n                                <label for=\"user_rating\" style=\"font-size: 1.3em;\">MyRating</label><br>\r\n                                <small class=\"text-muted\">Add your own rating for this restaurant!</small>\r\n                                <div class=\"form-group\">\r\n                                    <input type=\"range\" class=\"w-75 form-control-range pt-10\" name=\"user_rating\" value=\"{{ restaurant.rating }}\" id=\"user_rating\" min=\"1.0\" max=\"5.0\" step=\".1\">\r\n                                </div>\r\n                                <div class=\"w-75 form-group text-center\">\r\n                                    <small class=\"text-muted font-weight-bold\" id=\"user_ratingvalue\"></small>\r\n                                </div>\r\n                            </div>\r\n                            <div class=\"form-group col-md-6\">\r\n                                <label for=\"user_comments\" style=\"font-size: 1.3em;\">MyComments</label>\r\n                                <textarea class=\"form-control\" id=\"user_comments\" name=\"user_comments\" rows=\"3\" maxlength=\"500\" placeholder=\"Add your own comments about the restaurant here! Great food? Bad atmosphere? Use this as your own personal sticky note!\"></textarea>\r\n                            </div>\r\n                        </div>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"address\">Address*</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"address\" id=\"address\" maxlength=\"255\" required>\r\n                            <small class=\"text-muted\">Only use a comma between city and state/province, ie: &nbsp; 123 Main Street Houston, TX 77002</small>\r\n                        </div>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"phone\">Phone number(s)</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"phone\" id=\"phone\" maxlength=\"100\">\r\n                            <small class=\"text-muted\">Use a comma to separate phone numbers, ie: &nbsp;(713) 555-5555, (713) 555-5556</small>\r\n                        </div>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"hours\">Hours</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"hours\" id=\"hours\" maxlength=\"255\">\r\n                            <small class=\"text-muted\">Store days in parentheses, ie: &nbsp;8 AM to 10 PM (Mon, Sun), 8 AM to 12 Midnight (Tue-Sat)</small>\r\n                        </div>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"url\">Link to Restaurant</label>\r\n                            <input type=\"url\" class=\"form-control\" name=\"url\" id=\"url\" maxlength=\"200\">\r\n                        </div>\r\n                        <div class=\"form-group\">\r\n                            <label for=\"img\">Link to Restaurant's Image</label>\r\n                            <input type=\"url\" class=\"form-control\" name=\"img\" id=\"img\" maxlength=\"200\">\r\n                            <small class=\"text-muted\">Update this image URL to change the restaurant's photo</small>\r\n                        </div>\r\n                    </div>\r\n                    <div class=\"btn-group mx-auto w-75 mt-3 mb-5\" role=\"group\">\r\n                        <button type=\"submit\" class=\"btn btn-lg btn-outline-secondary submitchange mx-auto mb-4\">Submit</button>\r\n                    </div>\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>\r\n</form>\r\n\r\n<!-- javascript to display rating value -->\r\n<script>\r\n    var slider = document.getElementById(\"user_rating\");\r\n    var output = document.getElementById(\"user_ratingvalue\");\r\n    output.innerHTML = slider.value;\r\n\r\n    slider.oninput = function() {\r\n      output.innerHTML = this.value;\r\n    }\r\n</script>\r\n\r\n\r\n{% endblock %}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_add.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_add.html	(date 1600824271224)
+@@ -4,137 +4,18 @@
+ 
+ {% block content %}
+ 
+-<h1 class="text-muted mycontainer">Add your favorite restaurant to <span class="mylisttitle">MyList</span>!</h1>
+-<h6 class="text-muted mt-4">We're so sorry we couldn't find your restaurant in our database...</h6>
+-<h6 class="text-muted mb-4">Submit this form to store it locally alongside your other favorites!</h6>
+-<hr class="my-4 w-75">
+-
++<h1>Add Restaurant</h1>
+ 
+-        <!-- error message if form is submitted but still invalid -->
+-        {% for message in messages %}
+-                    <div class="alert alert-warning col w-75 mx-auto whoopsmsg">
+-                        <a class="close" href="#" data-dismiss="alert">×</a>
+-                        <h4>Save unsuccessful</h4>
+-                        <h6>{{ message }}</h6>
+-                    </div>
+-        {% endfor %}
+-
+-
+-<!-- form starts before buttons at top of page so they can be used to submit -->
+-<form method="POST">
+-    {% csrf_token %}
+-    <button type="submit" class="btn btn-lg btn-outline-secondary submitchange mx-auto mt-4 mb-4 w-50">Submit</button>
+-
+-
+-
+-    <!-- displays a list of all restaurants saved locally in database -->
+-    <div class="container-fluid footer_buffer">
+-        <div class="card w-75 mt-5 mx-auto">
+-            <div class="row no-gutters">
+-                <!-- TOP SECTION -->
+-                <div class="col-md-5">
+-                    <img id="editimg" src="{% static 'RestaurantApp/imgs/test_matheus-frade-unsplash.jpg' %}" height="375px" class="card-img cardimgs" alt="Placeholder image (currently not displaying)">
+-                </div>
+-                <div class="col-md-7">
+-                    <div class="card-body text-left mylistlabels">
+-                            <small class="text-muted">Only required fields are Restaurant Name* and Address*</small><br>
+-                            <small class="text-muted">This photo is just a placeholder - we highly encourage you to add your own!</small><br>
+-                            <small class="text-muted">To add a photo, use the Link to Restaurant's Image field</small>
+-                        <div class="form-group">
+-                            <label for="name">Restaurant Name*</label>
+-                            <input type="text" class="form-control" name="name" id="name" maxlength="255" required>
+-                        </div>
+-                        <div class="form-group">
+-                            <label for="cuisines">Cuisine(s)</label>
+-                            <input type="text" class="form-control" name="cuisines" id="cuisines" maxlength="255">
+-                            <small class="text-muted">Use commas to separate cuisines, ie: &nbsp;Burgers, American</small>
+-                        </div>
+-                        <div class="form-group">
+-                            <label for="pricerange">Price range</label>
+-                            <div id="pricerange">
+-                                <div class="form-check form-check-inline ml-3">
+-                                    <input class="form-check-input" type="radio" name="pricerange" id="$" value="1">
+-                                    <label class="form-check-label" for="$">$</label>
+-                                </div>
+-                                <div class="form-check form-check-inline">
+-                                    <input class="form-check-input" type="radio" name="pricerange" id="$$" value="2">
+-                                    <label class="form-check-label" for="$">$$</label>
+-                                </div>
+-                                <div class="form-check form-check-inline">
+-                                    <input class="form-check-input" type="radio" name="pricerange" id="$$$" value="3">
+-                                    <label class="form-check-label" for="$">$$$</label>
+-                                </div>
+-                                <div class="form-check form-check-inline">
+-                                    <input class="form-check-input" type="radio" name="pricerange" id="$$$$" value="4">
+-                                    <label class="form-check-label" for="$">$$$$</label>
+-                                </div>
+-                            </div>
+-                        </div>
+-                    </div>
+-                </div>
+-                <!-- MAIN BODY SECTION -->
+-                <div class="col-md-12">
+-                    <div class="card-body text-left mylistlabels">
+-                        <div class="form-row">
+-                            <div class="form-group col-md-6">
+-                                <label for="user_rating" style="font-size: 1.3em;">MyRating</label><br>
+-                                <small class="text-muted">Add your own rating for this restaurant!</small>
+-                                <div class="form-group">
+-                                    <input type="range" class="w-75 form-control-range pt-10" name="user_rating" value="{{ restaurant.rating }}" id="user_rating" min="1.0" max="5.0" step=".1">
+-                                </div>
+-                                <div class="w-75 form-group text-center">
+-                                    <small class="text-muted font-weight-bold" id="user_ratingvalue"></small>
+-                                </div>
+-                            </div>
+-                            <div class="form-group col-md-6">
+-                                <label for="user_comments" style="font-size: 1.3em;">MyComments</label>
+-                                <textarea class="form-control" id="user_comments" name="user_comments" rows="3" maxlength="500" placeholder="Add your own comments about the restaurant here! Great food? Bad atmosphere? Use this as your own personal sticky note!"></textarea>
+-                            </div>
+-                        </div>
+-                        <div class="form-group">
+-                            <label for="address">Address*</label>
+-                            <input type="text" class="form-control" name="address" id="address" maxlength="255" required>
+-                            <small class="text-muted">Only use a comma between city and state/province, ie: &nbsp; 123 Main Street Houston, TX 77002</small>
+-                        </div>
+-                        <div class="form-group">
+-                            <label for="phone">Phone number(s)</label>
+-                            <input type="text" class="form-control" name="phone" id="phone" maxlength="100">
+-                            <small class="text-muted">Use a comma to separate phone numbers, ie: &nbsp;(713) 555-5555, (713) 555-5556</small>
+-                        </div>
+-                        <div class="form-group">
+-                            <label for="hours">Hours</label>
+-                            <input type="text" class="form-control" name="hours" id="hours" maxlength="255">
+-                            <small class="text-muted">Store days in parentheses, ie: &nbsp;8 AM to 10 PM (Mon, Sun), 8 AM to 12 Midnight (Tue-Sat)</small>
+-                        </div>
+-                        <div class="form-group">
+-                            <label for="url">Link to Restaurant</label>
+-                            <input type="url" class="form-control" name="url" id="url" maxlength="200">
+-                        </div>
+-                        <div class="form-group">
+-                            <label for="img">Link to Restaurant's Image</label>
+-                            <input type="url" class="form-control" name="img" id="img" maxlength="200">
+-                            <small class="text-muted">Update this image URL to change the restaurant's photo</small>
+-                        </div>
+-                    </div>
+-                    <div class="btn-group mx-auto w-75 mt-3 mb-5" role="group">
+-                        <button type="submit" class="btn btn-lg btn-outline-secondary submitchange mx-auto mb-4">Submit</button>
+-                    </div>
+-                </div>
+-            </div>
+-        </div>
+-    </div>
+-</form>
+-
+-<!-- javascript to display rating value -->
+-<script>
+-    var slider = document.getElementById("user_rating");
+-    var output = document.getElementById("user_ratingvalue");
+-    output.innerHTML = slider.value;
+-
+-    slider.oninput = function() {
+-      output.innerHTML = this.value;
+-    }
+-</script>
++<div>
++    <form action="{% url 'RestaurantAdd' %}" method="POST">
++        {% csrf_token %}
++        <table class="addTable">
++        {{ form }}
++        </table>
++        <input type="submit" value="Submit">
++    </form>
++    <p>(Bubble options are not required)</p>
++</div>
+ 
+ 
+ {% endblock %}
+\ No newline at end of file
+Index: AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_details.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% extends 'RestaurantApp/RestaurantApp_base.html' %}\r\n\r\n{% load staticfiles %}\r\n\r\n{% block content %}\r\n<!-- Delete Confirmation Modal -->\r\n<div class=\"modal fade\" id=\"deleteModal\" tabindex=\"-1\" aria-labelledby=\"deleteModalLabel\" aria-hidden=\"true\">\r\n  <div class=\"modal-dialog modal-dialog-centered\">\r\n    <div class=\"modal-content\">\r\n      <div class=\"modal-header\">\r\n        <h3 class=\"modal-title mydeletetitle\" id=\"deleteModalLabel\">Confirm Delete</h3>\r\n        <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-label=\"Close\">\r\n          <span aria-hidden=\"true\">&times;</span>\r\n        </button>\r\n      </div>\r\n      <div class=\"modal-body\">\r\n          <h5 class=\"w-75 mx-auto\">Are you sure you want to remove <br><span class=\"mylisttitle\">{{ restaurant.name|title }}</span> from MyList?</h5>\r\n      </div>\r\n      <div class=\"modal-footer\">\r\n          <button type=\"button\" class=\"btn btn-outline-secondary\" data-dismiss=\"modal\">Cancel</button>\r\n          <button type=\"submit\" class=\"btn btn-outline-danger deletemodalbutton\" onclick=\"deleteForm()\">Delete</button>\r\n      </div>                                            <!-- ^ triggering delete function -->\r\n    </div>\r\n  </div>\r\n</div>\r\n\r\n<h1 class=\"text-muted mycontainer\">Details for <span class=\"mylisttitle\">{{ restaurant.name|title }}</span></h1>\r\n<hr class=\"my-4 w-75\">\r\n<div class=\"row mt-5 mb-3 w-50 mx-auto\">\r\n        <div class=\"col mx-auto\">\r\n            <button type=\"button\" class=\"btn btn-lg btn-block btn-outline-secondary\" onclick=\"window.location.href='edit/{{ restaurant.pk }}'\">Edit</button>\r\n        </div>\r\n        <div class=\"col mx-auto\">\r\n            <button type=\"button\" class=\"btn btn-lg btn-block btn-outline-secondary deletechange\" data-toggle=\"modal\" data-target=\"#deleteModal\">Remove</button>\r\n        </div>\r\n</div>\r\n\r\n\r\n\r\n<!-- displays a list of all restaurants saved locally in database -->\r\n<div class=\"container-fluid footer_buffer\">\r\n    <form>\r\n        <div class=\"card w-75 mt-5 mx-auto\">\r\n            <div class=\"row no-gutters\">\r\n                <!-- TOP SECTION displaying image, name and ID -->\r\n                <div class=\"col-md-5\">\r\n                    {% if restaurant.img is not None %}\r\n                    <img src=\"{{ restaurant.img }}\" height=\"275px\" class=\"card-img cardimgs\" alt=\"(Not displaying or link is corrupted)\" style=\"min-height: 100%;\">\r\n                    {% else %}\r\n                    <img src=\"{% static 'RestaurantApp/imgs/test_matheus-frade-unsplash.jpg' %}\" class=\"card-img cardimgs\" height=\"275px\" alt=\"No saved image\" style=\"min-height: 100%;\">\r\n                    {% endif %}\r\n                </div>\r\n                <div class=\"col-md-7\">\r\n                    <div class=\"card-body text-left mylistlabels\">\r\n                        <!-- MENU BUTTON -->\r\n                        {% if restaurant.menu %}\r\n                        <div class=\"col-md-6 offset-md-6 text-right\">\r\n                            <div class=\"btn-group w-50\" role=\"group\">\r\n                                <button type=\"button\" class=\"btn btn-lg btn-outline-danger font-weight-bold\" onclick=\"window.location.href='{{ restaurant.menu }}'\">Menu</button>\r\n                            </div>\r\n                        </div>\r\n                        {% endif %}\r\n                        <!-- NAME -->\r\n                        {% if restaurant.url %}\r\n                        <h2 class=\"card-title\"><a class=\"text-decoration-none mycardtitle\" href=\"{{ restaurant.url }}\">{{ restaurant.name|title }}</a></h2>\r\n                        {% else %}\r\n                        <h2 class=\"card-title mylisttitle\">{{ restaurant.name|title }}</h2>\r\n                        {% endif %}\r\n                        <!-- CUISINE AND COST -->\r\n                        <div class=\"card-text text-left text-muted font-weight-bold mt-2\">{% if restaurant.pricerange %}{% if restaurant.pricerange is 1 %}<span class=\"text-black-50\">$</span><span class=\"transparentmoney\">$$$</span>\r\n                            {% elif restaurant.pricerange is 2 %}<span class=\"text-muted font-weight-bold\">$$</span><span class=\"transparentmoney\">$$</span>\r\n                            {% elif restaurant.pricerange is 3 %}<span class=\"text-muted font-weight-bold\">$$$</span><span class=\"transparentmoney\">$</span>\r\n                            {% else %}<span class=\"text-muted font-weight-bold\">$$$$</span> {% endif %}               <svg width=\".4em\" height=\".4em\" viewBox=\"0 0 16 16\" class=\"bi bi-circle-fill text-muted font-weight-bold\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"8\" r=\"8\"/></svg> {% endif %}\r\n                            {% if restaurant.cuisines %}{{ restaurant.cuisines }}                                                   <svg width=\".4em\" height=\".4em\" viewBox=\"0 0 16 16\" class=\"bi bi-circle-fill text-muted font-weight-bold\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"8\" cy=\"8\" r=\"8\"/></svg> {% endif %}\r\n                            {% if restaurant.establishment %}{{ restaurant.establishment }}{% endif %}\r\n                        </div>\r\n                        <!-- STAR RATING AND RATINGS TEXT-->\r\n                        {% if restaurant.rating %}\r\n                        <div class=\"text-left text-muted font-weight-bold mt-2\"><b><span id=\"stars{{ restaurant.id }}\" title=\"{{ restaurant.rating }}\"></span></b> {{ restaurant.rating }} &nbsp;voted by {{ restaurant.votes }} others - \"{{ restaurant.rating_text }}\"</div>\r\n                        {% endif %}\r\n                        <!-- AVG COST -->\r\n                        {% if restaurant.avgfortwo %}\r\n                        <div class=\"text-muted font-weight-bold mt-2\">Avg. cost for two: &nbsp;${{ restaurant.avgfortwo }}</div>\r\n                        {% endif %}\r\n                        <div class=\"text-muted font-weight-bold col mt-2\">\r\n                        {% if restaurant.takeaway %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Takeaway &nbsp;</div>{% endif %}\r\n                        {% if restaurant.delivery %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Delivery &nbsp;</div>{% endif %}\r\n                        {% if restaurant.vegetarian %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Vegetarian Options &nbsp;</div>{% endif %}\r\n                        {% if restaurant.vegan %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Vegan Options &nbsp;</div>{% endif %}\r\n                        {% if restaurant.gluten_free %}<div class=\"d-inline-block\"><svg width=\"1em\" height=\"1em\" viewBox=\"0 0 16 16\" class=\"bi bi-check2-circle\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z\"/><path fill-rule=\"evenodd\" d=\"M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z\"/></svg>Gluten Free Options </div>{% endif %}\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n                <!-- MAIN BODY SECTION -->\r\n                <div class=\"col-md-12\">\r\n                    <div class=\"card-body text-left mylistlabels\">\r\n                        <div class=\"row text-center\">\r\n                            <!-- MYRATING -->\r\n                            <div class=\"col-md-6 mt-4 mb-4\">\r\n                                <h5 class=\"font-weight-bold\">MyRating</h5>\r\n                                {% if restaurant.user_rating %}\r\n                                <div class=\"text-black-50\"><b><span id=\"myrating{{ restaurant.id }}\" title=\"{{ restaurant.user_rating }}\" style=\"font-size: 2.5em;\"></span></b></div>\r\n                                <div class=\"text-muted font-weight-bold\">You gave this restaurant: &nbsp;{{ restaurant.user_rating }} stars!</div>\r\n                                {% else %}\r\n                                <div class=\"text-muted font-weight-bold\">Whoops! You haven't added your own rating yet!<br>Click 'Edit' to add one!</div>\r\n                                {% endif %}\r\n                            </div>\r\n                            <!-- MYCOMMENTS -->\r\n                            <div class=\"col-md-6 mt-4 mb-4\">\r\n                                <h5 class=\"font-weight-bold\">MyComments</h5>\r\n                                {% if restaurant.user_comments %}\r\n                                <div class=\"text-muted font-weight-bold\">{{ restaurant.user_comments }}</div>\r\n                                {% else %}\r\n                                <div class=\"text-muted font-weight-bold\">Looks like you haven't added any comments!<br>Click 'Edit' to add some!</div>\r\n                                {% endif %}\r\n                            </div>\r\n                        </div>\r\n                        <!-- ADDRESS -->\r\n                        <div class=\"row\">\r\n                            <div class=\"col-md-4 text-md-right mt-4\">\r\n                                <h5 class=\"text-muted font-weight-bold\">Address:</h5>\r\n                            </div>\r\n                            <div class=\"col-md-8 text-left mt-4\">\r\n                                <h5 class=\"font-weight-bold\">{{ restaurant.address }}</h5>\r\n                            </div>\r\n                        </div>\r\n                        <!-- PHONE -->\r\n                        <div class=\"row\">\r\n                            <div class=\"col-md-4 text-md-right mt-4\">\r\n                                <h5 class=\"text-muted font-weight-bold\">Phone:</h5>\r\n                            </div>\r\n                            <div class=\"col-md-8 text-left mt-4\">\r\n                                <h5 class=\"font-weight-bold\">{{ restaurant.phone }}</h5>\r\n                            </div>\r\n                        </div>\r\n                        <!-- HOURS -->\r\n                        <div class=\"row\">\r\n                            <div class=\"col-md-4 text-md-right mt-4 mb-4\">\r\n                                <h5 class=\"text-muted font-weight-bold\">Hours:</h5>\r\n                            </div>\r\n                            <div class=\"col-md-8 text-left mt-4 mb-4\">\r\n                                <h5 class=\"font-weight-bold\">{{ restaurant.hours }}</h5>\r\n                            </div>\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n                <!-- EDIT/REMOVE BUTTONS -->\r\n                <div class=\"row mt-4 mb-5 w-75 mx-auto\">\r\n                    <div class=\"col mb-4 mx-auto\">\r\n                            <button type=\"button\" class=\"btn btn-lg btn-block btn-outline-secondary\" onclick=\"window.location.href='edit/{{ restaurant.pk }}'\">Edit</button>\r\n                    </div>\r\n                    <div class=\"col mb-4 mx-auto\">\r\n                        <button type=\"button\" class=\"btn btn-lg btn-block btn-outline-secondary deletechange\" data-toggle=\"modal\" data-target=\"#deleteModal\">Remove</button>\r\n                    </div>\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </form>\r\n</div>\r\n\r\n\r\n<!-- DELETE FUNCTIONALITY -->\r\n<!-- this additional form is hidden and holds the django url to start the delete function in views.py -->\r\n<form id=\"hiddenForm\" action=\"{% url 'RestaurantDetailsDelete' restaurant.pk %}\" method=\"POST\">\r\n    {% csrf_token %}\r\n</form>\r\n<!-- javascript attached to the modal delete button so that the hidden form can actually be submitted -->\r\n<script type=\"text/javascript\">\r\n    function deleteForm() {document.getElementById(\"hiddenForm\").submit();}\r\n</script>\r\n\r\n<!-- javascript for star rating -->\r\n<script>\r\n    var stars = document.getElementById(\"stars{{ restaurant.id }}\").title\r\n    document.getElementById(\"stars{{ restaurant.id }}\").innerHTML = getStars(stars);\r\n    function getStars(rating) {\r\n        // Round to nearest half\r\n        rating = Math.round(rating * 2) / 2;\r\n        let output = [];\r\n        // Append all the filled whole stars\r\n        for (var i = rating; i >= 1; i--)\r\n            output.push('<i class=\"fa fa-star text-left\" aria-hidden=\"true\" style=\"color: #77828E;\"></i>&nbsp;');\r\n        // If there is a half a star, append it\r\n        if (i == .5) output.push('<i class=\"fa fa-star-half-o text-left\" aria-hidden=\"true\" style=\"color: #77828E;\"></i>&nbsp;');\r\n        // Fill the empty stars\r\n        for (let i = (5 - rating); i >= 1; i--)\r\n            output.push('<i class=\"fa fa-star-o text-left\" aria-hidden=\"true\" style=\"color: #77828E;\"></i>&nbsp;');\r\n        return output.join('');\r\n    }\r\n</script>\r\n\r\n<!-- javascript for MyRating -->\r\n<script>\r\n    var stars = document.getElementById(\"myrating{{ restaurant.id }}\").title\r\n    document.getElementById(\"myrating{{ restaurant.id }}\").innerHTML = getStars(stars);\r\n    function getStars(rating) {\r\n        // Round to nearest half\r\n        rating = Math.round(rating * 2) / 2;\r\n        let output = [];\r\n        // Append all the filled whole stars\r\n        for (var i = rating; i >= 1; i--)\r\n            output.push('<i class=\"fa fa-star text-left\" aria-hidden=\"true\" style=\"color: gold;\"></i>&nbsp;');\r\n        // If there is a half a star, append it\r\n        if (i == .5) output.push('<i class=\"fa fa-star-half-o text-left\" aria-hidden=\"true\" style=\"color: gold;\"></i>&nbsp;');\r\n        // Fill the empty stars\r\n        for (let i = (5 - rating); i >= 1; i--)\r\n            output.push('<i class=\"fa fa-star-o text-left\" aria-hidden=\"true\" style=\"color: gold;\"></i>&nbsp;');\r\n        return output.join('');\r\n    }\r\n</script>\r\n\r\n{% endblock %}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_details.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_details.html	(date 1600824271242)
+@@ -3,210 +3,95 @@
+ {% load staticfiles %}
+ 
+ {% block content %}
+-<!-- Delete Confirmation Modal -->
+-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+-  <div class="modal-dialog modal-dialog-centered">
+-    <div class="modal-content">
+-      <div class="modal-header">
+-        <h3 class="modal-title mydeletetitle" id="deleteModalLabel">Confirm Delete</h3>
+-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+-          <span aria-hidden="true">&times;</span>
+-        </button>
+-      </div>
+-      <div class="modal-body">
+-          <h5 class="w-75 mx-auto">Are you sure you want to remove <br><span class="mylisttitle">{{ restaurant.name|title }}</span> from MyList?</h5>
+-      </div>
+-      <div class="modal-footer">
+-          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+-          <button type="submit" class="btn btn-outline-danger deletemodalbutton" onclick="deleteForm()">Delete</button>
+-      </div>                                            <!-- ^ triggering delete function -->
+-    </div>
+-  </div>
+-</div>
+-
+-<h1 class="text-muted mycontainer">Details for <span class="mylisttitle">{{ restaurant.name|title }}</span></h1>
+-<hr class="my-4 w-75">
+-<div class="row mt-5 mb-3 w-50 mx-auto">
+-        <div class="col mx-auto">
+-            <button type="button" class="btn btn-lg btn-block btn-outline-secondary" onclick="window.location.href='edit/{{ restaurant.pk }}'">Edit</button>
++
++<h3>Details</h3> <br>
++
++    <div class="row">
++        <div class="col">
++            <h1>{{ restaurant.name|title }}</h1>
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Cuisine:
++        </div>
++        <div class="col text-left">
++            {{ restaurant.cuisine }}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Rating:
+         </div>
+-        <div class="col mx-auto">
+-            <button type="button" class="btn btn-lg btn-block btn-outline-secondary deletechange" data-toggle="modal" data-target="#deleteModal">Remove</button>
++        <div class="col text-left">
++            {% if restaurant.rating is not None %} {{ restaurant.rating }}/5 {% else %}(No current ratings){% endif %}
+         </div>
+-</div>
+-
+-
+-
+-<!-- displays a list of all restaurants saved locally in database -->
+-<div class="container-fluid footer_buffer">
+-    <form>
+-        <div class="card w-75 mt-5 mx-auto">
+-            <div class="row no-gutters">
+-                <!-- TOP SECTION displaying image, name and ID -->
+-                <div class="col-md-5">
+-                    {% if restaurant.img is not None %}
+-                    <img src="{{ restaurant.img }}" height="275px" class="card-img cardimgs" alt="(Not displaying or link is corrupted)" style="min-height: 100%;">
+-                    {% else %}
+-                    <img src="{% static 'RestaurantApp/imgs/test_matheus-frade-unsplash.jpg' %}" class="card-img cardimgs" height="275px" alt="No saved image" style="min-height: 100%;">
+-                    {% endif %}
+-                </div>
+-                <div class="col-md-7">
+-                    <div class="card-body text-left mylistlabels">
+-                        <!-- MENU BUTTON -->
+-                        {% if restaurant.menu %}
+-                        <div class="col-md-6 offset-md-6 text-right">
+-                            <div class="btn-group w-50" role="group">
+-                                <button type="button" class="btn btn-lg btn-outline-danger font-weight-bold" onclick="window.location.href='{{ restaurant.menu }}'">Menu</button>
+-                            </div>
+-                        </div>
+-                        {% endif %}
+-                        <!-- NAME -->
+-                        {% if restaurant.url %}
+-                        <h2 class="card-title"><a class="text-decoration-none mycardtitle" href="{{ restaurant.url }}">{{ restaurant.name|title }}</a></h2>
+-                        {% else %}
+-                        <h2 class="card-title mylisttitle">{{ restaurant.name|title }}</h2>
+-                        {% endif %}
+-                        <!-- CUISINE AND COST -->
+-                        <div class="card-text text-left text-muted font-weight-bold mt-2">{% if restaurant.pricerange %}{% if restaurant.pricerange is 1 %}<span class="text-black-50">$</span><span class="transparentmoney">$$$</span>
+-                            {% elif restaurant.pricerange is 2 %}<span class="text-muted font-weight-bold">$$</span><span class="transparentmoney">$$</span>
+-                            {% elif restaurant.pricerange is 3 %}<span class="text-muted font-weight-bold">$$$</span><span class="transparentmoney">$</span>
+-                            {% else %}<span class="text-muted font-weight-bold">$$$$</span> {% endif %}               <svg width=".4em" height=".4em" viewBox="0 0 16 16" class="bi bi-circle-fill text-muted font-weight-bold" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8"/></svg> {% endif %}
+-                            {% if restaurant.cuisines %}{{ restaurant.cuisines }}                                                   <svg width=".4em" height=".4em" viewBox="0 0 16 16" class="bi bi-circle-fill text-muted font-weight-bold" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8"/></svg> {% endif %}
+-                            {% if restaurant.establishment %}{{ restaurant.establishment }}{% endif %}
+-                        </div>
+-                        <!-- STAR RATING AND RATINGS TEXT-->
+-                        {% if restaurant.rating %}
+-                        <div class="text-left text-muted font-weight-bold mt-2"><b><span id="stars{{ restaurant.id }}" title="{{ restaurant.rating }}"></span></b> {{ restaurant.rating }} &nbsp;voted by {{ restaurant.votes }} others - "{{ restaurant.rating_text }}"</div>
+-                        {% endif %}
+-                        <!-- AVG COST -->
+-                        {% if restaurant.avgfortwo %}
+-                        <div class="text-muted font-weight-bold mt-2">Avg. cost for two: &nbsp;${{ restaurant.avgfortwo }}</div>
+-                        {% endif %}
+-                        <div class="text-muted font-weight-bold col mt-2">
+-                        {% if restaurant.takeaway %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Takeaway &nbsp;</div>{% endif %}
+-                        {% if restaurant.delivery %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Delivery &nbsp;</div>{% endif %}
+-                        {% if restaurant.vegetarian %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Vegetarian Options &nbsp;</div>{% endif %}
+-                        {% if restaurant.vegan %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Vegan Options &nbsp;</div>{% endif %}
+-                        {% if restaurant.gluten_free %}<div class="d-inline-block"><svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-check2-circle" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M15.354 2.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L8 9.293l6.646-6.647a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M8 2.5A5.5 5.5 0 1 0 13.5 8a.5.5 0 0 1 1 0 6.5 6.5 0 1 1-3.25-5.63.5.5 0 1 1-.5.865A5.472 5.472 0 0 0 8 2.5z"/></svg>Gluten Free Options </div>{% endif %}
+-                        </div>
+-                    </div>
+-                </div>
+-                <!-- MAIN BODY SECTION -->
+-                <div class="col-md-12">
+-                    <div class="card-body text-left mylistlabels">
+-                        <div class="row text-center">
+-                            <!-- MYRATING -->
+-                            <div class="col-md-6 mt-4 mb-4">
+-                                <h5 class="font-weight-bold">MyRating</h5>
+-                                {% if restaurant.user_rating %}
+-                                <div class="text-black-50"><b><span id="myrating{{ restaurant.id }}" title="{{ restaurant.user_rating }}" style="font-size: 2.5em;"></span></b></div>
+-                                <div class="text-muted font-weight-bold">You gave this restaurant: &nbsp;{{ restaurant.user_rating }} stars!</div>
+-                                {% else %}
+-                                <div class="text-muted font-weight-bold">Whoops! You haven't added your own rating yet!<br>Click 'Edit' to add one!</div>
+-                                {% endif %}
+-                            </div>
+-                            <!-- MYCOMMENTS -->
+-                            <div class="col-md-6 mt-4 mb-4">
+-                                <h5 class="font-weight-bold">MyComments</h5>
+-                                {% if restaurant.user_comments %}
+-                                <div class="text-muted font-weight-bold">{{ restaurant.user_comments }}</div>
+-                                {% else %}
+-                                <div class="text-muted font-weight-bold">Looks like you haven't added any comments!<br>Click 'Edit' to add some!</div>
+-                                {% endif %}
+-                            </div>
+-                        </div>
+-                        <!-- ADDRESS -->
+-                        <div class="row">
+-                            <div class="col-md-4 text-md-right mt-4">
+-                                <h5 class="text-muted font-weight-bold">Address:</h5>
+-                            </div>
+-                            <div class="col-md-8 text-left mt-4">
+-                                <h5 class="font-weight-bold">{{ restaurant.address }}</h5>
+-                            </div>
+-                        </div>
+-                        <!-- PHONE -->
+-                        <div class="row">
+-                            <div class="col-md-4 text-md-right mt-4">
+-                                <h5 class="text-muted font-weight-bold">Phone:</h5>
+-                            </div>
+-                            <div class="col-md-8 text-left mt-4">
+-                                <h5 class="font-weight-bold">{{ restaurant.phone }}</h5>
+-                            </div>
+-                        </div>
+-                        <!-- HOURS -->
+-                        <div class="row">
+-                            <div class="col-md-4 text-md-right mt-4 mb-4">
+-                                <h5 class="text-muted font-weight-bold">Hours:</h5>
+-                            </div>
+-                            <div class="col-md-8 text-left mt-4 mb-4">
+-                                <h5 class="font-weight-bold">{{ restaurant.hours }}</h5>
+-                            </div>
+-                        </div>
+-                    </div>
+-                </div>
+-                <!-- EDIT/REMOVE BUTTONS -->
+-                <div class="row mt-4 mb-5 w-75 mx-auto">
+-                    <div class="col mb-4 mx-auto">
+-                            <button type="button" class="btn btn-lg btn-block btn-outline-secondary" onclick="window.location.href='edit/{{ restaurant.pk }}'">Edit</button>
+-                    </div>
+-                    <div class="col mb-4 mx-auto">
+-                        <button type="button" class="btn btn-lg btn-block btn-outline-secondary deletechange" data-toggle="modal" data-target="#deleteModal">Remove</button>
+-                    </div>
+-                </div>
+-            </div>
+-        </div>
+-    </form>
+-</div>
+-
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Pricing:
++        </div>
++        <div class="col text-left">
++            {% if restaurant.price is not None %} {{ restaurant.price }} {% else %}(No pricing information){% endif %}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Address:
++        </div>
++        <div class="col text-left">
++            {{ restaurant.address }}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            City:
++        </div>
++        <div class="col text-left">
++            {{ restaurant.city }}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            State/Province:
++        </div>
++        <div class="col text-left">
++            {{ restaurant.state_province }}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Zip Code:
++        </div>
++        <div class="col text-left">
++            {{ restaurant.zip_code }}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Delivery?
++        </div>
++        <div class="col text-left">
++            {% if restaurant.delivery is True %} Yes {% elif restaurant.delivery is False %} No {% else %} Unknown - contact restaurant directly {% endif %}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Take-out?
++        </div>
++        <div class="col text-left">
++            {% if restaurant.take_out is True %} Yes {% elif restaurant.take_out is False %} No {% else %} Unknown - contact restaurant directly {% endif %}
++        </div>
++    </div>
++    <div class="row">
++        <div class="col text-right">
++            Outdoor seating/area?
++        </div>
++        <div class="col text-left">
++            {% if restaurant.outdoor_seating is True %} Yes {% elif restaurant.outdoor_seating is False %} No {% else %} Unknown - contact restaurant directly {% endif %}
++        </div>
++    </div>
+ 
+-<!-- DELETE FUNCTIONALITY -->
+-<!-- this additional form is hidden and holds the django url to start the delete function in views.py -->
+-<form id="hiddenForm" action="{% url 'RestaurantDetailsDelete' restaurant.pk %}" method="POST">
+-    {% csrf_token %}
+-</form>
+-<!-- javascript attached to the modal delete button so that the hidden form can actually be submitted -->
+-<script type="text/javascript">
+-    function deleteForm() {document.getElementById("hiddenForm").submit();}
+-</script>
+-
+-<!-- javascript for star rating -->
+-<script>
+-    var stars = document.getElementById("stars{{ restaurant.id }}").title
+-    document.getElementById("stars{{ restaurant.id }}").innerHTML = getStars(stars);
+-    function getStars(rating) {
+-        // Round to nearest half
+-        rating = Math.round(rating * 2) / 2;
+-        let output = [];
+-        // Append all the filled whole stars
+-        for (var i = rating; i >= 1; i--)
+-            output.push('<i class="fa fa-star text-left" aria-hidden="true" style="color: #77828E;"></i>&nbsp;');
+-        // If there is a half a star, append it
+-        if (i == .5) output.push('<i class="fa fa-star-half-o text-left" aria-hidden="true" style="color: #77828E;"></i>&nbsp;');
+-        // Fill the empty stars
+-        for (let i = (5 - rating); i >= 1; i--)
+-            output.push('<i class="fa fa-star-o text-left" aria-hidden="true" style="color: #77828E;"></i>&nbsp;');
+-        return output.join('');
+-    }
+-</script>
+-
+-<!-- javascript for MyRating -->
+-<script>
+-    var stars = document.getElementById("myrating{{ restaurant.id }}").title
+-    document.getElementById("myrating{{ restaurant.id }}").innerHTML = getStars(stars);
+-    function getStars(rating) {
+-        // Round to nearest half
+-        rating = Math.round(rating * 2) / 2;
+-        let output = [];
+-        // Append all the filled whole stars
+-        for (var i = rating; i >= 1; i--)
+-            output.push('<i class="fa fa-star text-left" aria-hidden="true" style="color: gold;"></i>&nbsp;');
+-        // If there is a half a star, append it
+-        if (i == .5) output.push('<i class="fa fa-star-half-o text-left" aria-hidden="true" style="color: gold;"></i>&nbsp;');
+-        // Fill the empty stars
+-        for (let i = (5 - rating); i >= 1; i--)
+-            output.push('<i class="fa fa-star-o text-left" aria-hidden="true" style="color: gold;"></i>&nbsp;');
+-        return output.join('');
+-    }
+-</script>
++    <a href="edit/{{ restaurant.pk }}">Edit</a>
+ 
+ {% endblock %}
+\ No newline at end of file
+Index: AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_home.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% extends 'RestaurantApp/RestaurantApp_base.html' %}\r\n\r\n{% load staticfiles %}\r\n\r\n{% block content %}\r\n\r\n<!-- IMAGE CAROUSEL -->\r\n<div id=\"homecarousel\" class=\"carousel slide\" data-ride=\"carousel\" data-interval=\"5000\">\r\n  <div class=\"carousel-inner\">\r\n    <div class=\"carousel-item active\">\r\n        <img src=\"{% static 'RestaurantApp/imgs/slide1-melissa-walker-horn-unsplash.jpg' %}\" class=\"d-block w-100\" alt=\"(slide image not displayed; photo credit to Melissa Walker-Horn)\">\r\n    </div>\r\n    <div class=\"carousel-item\">\r\n      <img src=\"{% static 'RestaurantApp/imgs/slide2-eaters-collective-unsplash.jpg' %}\" class=\"d-block w-100\" alt=\"(slide image not displayed; photo credit to Eaters Collective)\">\r\n    </div>\r\n    <div class=\"carousel-item\">\r\n      <img src=\"{% static 'RestaurantApp/imgs/slide3-brooke-lark-unsplash.jpg' %}\" class=\"d-block w-100\" alt=\"(slide image not displayed; photo credit to Brooke Lark)\">\r\n    </div>\r\n      <div class=\"carousel-item\">\r\n      <img src=\"{% static 'RestaurantApp/imgs/slide4-davide-cantelli-unsplash.jpg' %}\" class=\"d-block w-100\" alt=\"(slide image not displayed; photo credit to Davide Cantelli)\">\r\n    </div>\r\n      <div class=\"carousel-item\">\r\n      <img src=\"{% static 'RestaurantApp/imgs/slide5-jakub-kapusnak-unsplash.jpg' %}\" class=\"d-block w-100\" alt=\"(slide image not displayed; photo credit to Jakub Kapusnak)\">\r\n    </div>\r\n  </div>\r\n</div>\r\n\r\n<!-- TITLE CARD/JUMBOTRON -->\r\n<div id=\"myjumbotron\" class=\"jumbotron mx-auto\">\r\n  <h1 class=\"display-2\">Dine-List</h1>\r\n  <h4 class=\"display-5\">Your favorite restaurants conveniently stored.</h4>\r\n  <hr class=\"my-4\">\r\n  <form action=\"{% url 'RestaurantNearMe' %}\" method=\"POST\">\r\n        {% csrf_token %}\r\n        <button type=\"submit\" class=\"btn btn-light btn-lg font-weight-bold\">Find Restaurants Near Me</button>\r\n  </form>\r\n    <br><h3>OR</h3><br>\r\n    <form action=\"{% url 'RestaurantApi' %}\" class=\"form-inline justify-content-center\" method=\"POST\">\r\n    {% csrf_token %}\r\n        <div class=\"input-group\">\r\n            <input type=\"text\" class=\"form-control form-control-lg noborders\" name=\"userCity\" placeholder=\"Search by City...\">\r\n            <div class=\"input-group-append\">\r\n                <button type=\"submit\" class=\"btn btn-light btn-lg font-weight-bold\">Go</button>\r\n            </div>\r\n        </div>\r\n    </form>\r\n\r\n        <!-- error message if city search returned with nothing -->\r\n        {% for message in messages %}\r\n                    <div class=\"alert alert-warning col w-75 mx-auto whoopsmsg\">\r\n                        <a class=\"close\" href=\"#\" data-dismiss=\"alert\">×</a>\r\n                        <h4>Whoops!</h4>\r\n                        <h6 class=\"w-75 mx-auto\">{{ message }}</h6>\r\n                    </div>\r\n        {% endfor %}\r\n</div>\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n<!-- this triggers the \"did you mean\" modal to give the user options from zomato's database -->\r\n{% if go %}\r\n    <script>\r\n        $(document).ready(function(){\r\n            $(\"#myModal\").modal('show');\r\n        });\r\n    </script>\r\n{% endif %}\r\n\r\n\r\n<!-- DID YOU MEAN modal -->\r\n<div class=\"modal fade\" id=\"myModal\" tabindex=\"-1\" aria-labelledby=\"deleteModalLabel\" aria-hidden=\"true\">\r\n  <div class=\"modal-dialog modal-dialog-centered\">\r\n    <div class=\"modal-content\">\r\n      <div class=\"modal-header\">\r\n        <h5 class=\"modal-title text-secondary\" id=\"deleteModalLabel\">Did you mean?</h5>\r\n        <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-label=\"Close\">\r\n          <span aria-hidden=\"true\">&times;</span>\r\n        </button>\r\n      </div>\r\n      <div class=\"modal-body\">\r\n          <!-- from our cities dictionary, 'key' is the id, 'value' is the name -->\r\n              {% for key, value in cities.items %}\r\n                <a class=\"mycardtitle text-decoration-none\" href=\"search/{{ key }}\" style=\"font-size: 2.5vh;\">{{ value }}</a><br>\r\n              {% endfor %}\r\n      </div>\r\n      <div class=\"modal-footer\">\r\n          <button type=\"button\" class=\"btn btn-secondary\" data-dismiss=\"modal\">Cancel</button>\r\n      </div>\r\n    </div>\r\n  </div>\r\n</div>\r\n\r\n\r\n{% endblock %}\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_home.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_home.html	(date 1600824271261)
+@@ -37,20 +37,15 @@
+     <br><h3>OR</h3><br>
+     <form action="{% url 'RestaurantApi' %}" class="form-inline justify-content-center" method="POST">
+     {% csrf_token %}
+-        <div class="input-group">
+-            <input type="text" class="form-control form-control-lg noborders" name="userCity" placeholder="Search by City...">
+-            <div class="input-group-append">
+-                <button type="submit" class="btn btn-light btn-lg font-weight-bold">Go</button>
+-            </div>
+-        </div>
++        <input type="text" class="form-control form-control-lg" name="userCity" placeholder="Search by City...">
++        <button type="submit" class="btn btn-light btn-lg font-weight-bold">Go</button>
+     </form>
+-
+         <!-- error message if city search returned with nothing -->
+         {% for message in messages %}
+                     <div class="alert alert-warning col w-75 mx-auto whoopsmsg">
+                         <a class="close" href="#" data-dismiss="alert">×</a>
+                         <h4>Whoops!</h4>
+-                        <h6 class="w-75 mx-auto">{{ message }}</h6>
++                            {{ message }}
+                     </div>
+         {% endfor %}
+ </div>
+Index: AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_edit.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% extends 'RestaurantApp/RestaurantApp_base.html' %}\r\n\r\n{% load staticfiles %}\r\n\r\n{% block content %}\r\n\r\n<!-- Delete Confirmation Modal -->\r\n<div class=\"modal fade\" id=\"deleteModal\" tabindex=\"-1\" aria-labelledby=\"deleteModalLabel\" aria-hidden=\"true\">\r\n  <div class=\"modal-dialog modal-dialog-centered\">\r\n    <div class=\"modal-content\">\r\n      <div class=\"modal-header\">\r\n        <h3 class=\"modal-title mydeletetitle\" id=\"deleteModalLabel\">Confirm Delete</h3>\r\n        <button type=\"button\" class=\"close\" data-dismiss=\"modal\" aria-label=\"Close\">\r\n          <span aria-hidden=\"true\">&times;</span>\r\n        </button>\r\n      </div>\r\n      <div class=\"modal-body\">\r\n          <h5 class=\"w-75 mx-auto\">Are you sure you want to remove <br><span class=\"mylisttitle\">{{ restaurant.name|title }}</span> from MyList?</h5>\r\n      </div>\r\n      <div class=\"modal-footer\">\r\n          <button type=\"button\" class=\"btn btn-outline-secondary\" data-dismiss=\"modal\">Cancel</button>\r\n          <button type=\"submit\" class=\"btn btn-outline-danger deletemodalbutton\" onclick=\"deleteForm()\">Delete</button>\r\n      </div>                                            <!-- ^ triggering delete function -->\r\n    </div>\r\n  </div>\r\n</div>\r\n\r\n\r\n\r\n\r\n\r\n<h1 class=\"text-muted mycontainer\">Editing <span class=\"mylisttitle\">{{ restaurant.name|title }}</span></h1>\r\n<h6 class=\"text-muted mt-3\">Please note: all changes are reflected in MyList and do not affect search results</h6>\r\n<hr class=\"my-4 w-75\">\r\n\r\n        <!-- error message if form is submitted but still invalid -->\r\n        {% for message in messages %}\r\n                    <div class=\"alert alert-warning col w-75 mx-auto whoopsmsg\">\r\n                        <a class=\"close\" href=\"#\" data-dismiss=\"alert\">×</a>\r\n                        <h4>Save unsuccessful</h4>\r\n                            {{ message }}\r\n                    </div>\r\n        {% endfor %}\r\n\r\n<!-- form starts before buttons at top of page so they can be used to submit -->\r\n<form method=\"POST\">\r\n    {% csrf_token %}\r\n    <div class=\"row mt-5 mb-3 w-50 mx-auto\">\r\n        <div class=\"col mx-auto\">\r\n            <button type=\"submit\" class=\"btn btn-lg btn-block btn-outline-secondary submitchange\">Submit</button>\r\n        </div>\r\n        <div class=\"col mx-auto\">\r\n            <button type=\"button\" class=\"btn btn-lg btn-block btn-outline-secondary deletechange\" data-toggle=\"modal\" data-target=\"#deleteModal\">Remove</button>\r\n        </div>\r\n    </div>\r\n\r\n\r\n    <!-- displays a list of all restaurants saved locally in database -->\r\n    <div class=\"container-fluid footer_buffer\">\r\n        <div class=\"card w-75 mt-5 mx-auto\">\r\n            <div class=\"row no-gutters\">\r\n                <!-- TOP SECTION displaying image and name -->\r\n                <div class=\"col-md-5\">\r\n                    {% if restaurant.img is not None %}\r\n                    <img src=\"{{ restaurant.img }}\" height=\"225px\" class=\"card-img cardimgs\" alt=\"(Not displaying or link is corrupted)\">\r\n                    {% else %}\r\n                    <img src=\"\" class=\"card-img cardimgs\" height=\"200px\" alt=\"No saved image\" style=\"min-height: 100%;\">\r\n                    {% endif %}\r\n                </div>\r\n                <div class=\"col-md-7\">\r\n                    <div class=\"card-body text-left mylistlabels\">\r\n                            <small class=\"text-muted\">Only required fields are Restaurant Name* and Address*</small><br>\r\n                            <small class=\"text-muted\">To change the restaurant's photo, update the Link to Restaurant's Image field</small>\r\n                        <!-- NAME -->\r\n                        <div class=\"form-group mt-5\">\r\n                            <label for=\"name\">Restaurant*</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"name\" value=\"{{ restaurant.name|title }}\" id=\"name\" maxlength=\"255\" required>\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n                <!-- MAIN BODY SECTION, showing bulk of data -->\r\n                <div class=\"col-md-12\">\r\n                    <div class=\"card-body text-left mylistlabels\">\r\n                        <div class=\"form-row\">\r\n                            <!-- MYRATING -->\r\n                            <div class=\"form-group col-md-6\">\r\n                                <label for=\"user_rating\" style=\"font-size: 1.3em;\">MyRating</label><br>\r\n                                <small class=\"text-muted\">Add your own rating for this restaurant!</small>\r\n                                <div class=\"form-group\">\r\n                                    <input type=\"range\" class=\"w-75 form-control-range pt-10\" name=\"user_rating\" value=\"{{ restaurant.user_rating }}\" id=\"user_rating\" min=\"1.0\" max=\"5.0\" step=\".1\">\r\n                                </div>\r\n                                <div class=\"w-75 form-group text-center\">\r\n                                    <small class=\"text-muted font-weight-bold\" id=\"user_ratingvalue\"></small>\r\n                                </div>\r\n                            </div>\r\n                            <!-- MYCOMMENTS -->\r\n                            <div class=\"form-group col-md-6\">\r\n                                <label for=\"user_comments\" style=\"font-size: 1.3em;\">MyComments</label>\r\n                                {% if restaurant.user_comments %}\r\n                                <textarea class=\"form-control\" id=\"user_comments\" name=\"user_comments\" rows=\"3\" maxlength=\"500\" placeholder=\"Add your own comments about the restaurant here! Great food? Bad atmosphere? Use this as your own personal sticky note!\">{{ restaurant.user_comments}}</textarea>\r\n                                {% else %}\r\n                                <textarea class=\"form-control\" id=\"user_comments\" name=\"user_comments\" rows=\"3\" maxlength=\"500\" placeholder=\"Add your own comments about the restaurant here! Great food? Bad atmosphere? Use this as your own personal sticky note!\"></textarea>\r\n                                {% endif %}\r\n                            </div>\r\n                        </div>\r\n                        <!-- ADDRESS -->\r\n                        <div class=\"form-group\">\r\n                            <label for=\"address\">Address*</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"address\" value=\"{{ restaurant.address }}\" id=\"address\" maxlength=\"255\" required>\r\n                            <small class=\"text-muted\">Provide street, city, state/province and zip code all on this line, ie: &nbsp; 123 Main Street Houston, TX 77002</small>\r\n                        </div>\r\n                        <!-- PHONE -->\r\n                        <div class=\"form-group\">\r\n                            <label for=\"phone\">Phone number(s)</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"phone\" value=\"{{ restaurant.phone }}\" id=\"phone\" maxlength=\"100\">\r\n                            <small class=\"text-muted\">Use a comma to separate phone numbers, ie: &nbsp;(713) 555-5555, (713) 555-5556</small>\r\n                        </div>\r\n                        <!-- HOURS -->\r\n                        <div class=\"form-group\">\r\n                            <label for=\"hours\">Hours</label>\r\n                            <input type=\"text\" class=\"form-control\" name=\"hours\" value=\"{{ restaurant.hours }}\" id=\"hours\" maxlength=\"255\">\r\n                            <small class=\"text-muted\">Store days in parentheses, ie: &nbsp;8 AM to 10 PM (Mon, Sun), 8 AM to 12 Midnight (Tue-Sat)</small>\r\n                        </div>\r\n                        <!-- URL -->\r\n                        <div class=\"form-group\">\r\n                            <label for=\"url\">Link to Restaurant</label>\r\n                            {% if restaurant.url %}\r\n                            <input type=\"url\" class=\"form-control\" name=\"url\" value=\"{{ restaurant.url }}\" id=\"url\" maxlength=\"200\">\r\n                            {% else %}\r\n                            <input type=\"url\" class=\"form-control\" name=\"url\" value=\"\" id=\"url\" maxlength=\"200\">\r\n                            {% endif %}\r\n                        </div>\r\n                        <!-- IMG -->\r\n                        <div class=\"form-group\">\r\n                            <label for=\"img\">Link to Restaurant's Image</label>\r\n                            {% if restaurant.img %}\r\n                            <input type=\"url\" class=\"form-control\" name=\"img\" value=\"{{ restaurant.img }}\" id=\"img\" maxlength=\"200\">\r\n                            {% else %}\r\n                            <input type=\"url\" class=\"form-control\" name=\"img\" value=\"\" id=\"img\" maxlength=\"200\">\r\n                            {% endif %}\r\n                            <small class=\"text-muted\">Update this link to change the restaurant's photo</small>\r\n                        </div>\r\n                        <!-- MENU -->\r\n                        <div class=\"form-group\">\r\n                            <label for=\"menu\">Link to Restaurant's Menu</label>\r\n                            {% if restaurant.menu %}\r\n                            <input type=\"url\" class=\"form-control\" name=\"menu\" value=\"{{ restaurant.menu }}\" id=\"menu\" maxlength=\"200\">\r\n                            {% else %}\r\n                            <input type=\"url\" class=\"form-control\" name=\"menu\" value=\"\" id=\"menu\" maxlength=\"200\">\r\n                            {% endif %}\r\n                        </div>\r\n                    </div>\r\n                    <!-- SUBMIT/REMOVE BUTTONS -->\r\n                    <div class=\"row mt-4 mb-5 w-75 mx-auto\">\r\n                        <div class=\"col mb-4 mx-auto\">\r\n                            <button type=\"submit\" class=\"btn btn-lg btn-block btn-outline-secondary submitchange\">Submit</button>\r\n                        </div>\r\n                        <div class=\"col mb-4 mx-auto\">\r\n                            <button type=\"button\" class=\"btn btn-lg btn-block btn-outline-secondary deletechange\" data-toggle=\"modal\" data-target=\"#deleteModal\">Remove</button>\r\n                        </div>\r\n                    </div>\r\n                </div>\r\n            </div>\r\n        </div>\r\n    </div>\r\n    <!-- alright so this part -->\r\n    <!-- this is keeping track of any values the form already has that we do NOT want the user interacting with and keeping them consistent -->\r\n    <!-- the main issue - a lot of fields are null, however after a query, we receive None -->\r\n    <!-- None does not get reentered as null, thus for all of the ELSE statements, value is left blank -->\r\n    <!-- essentially:   if none, value is \"\" -->\r\n    {% if restaurant.zomatoID %}\r\n    <input type=\"text\" class=\"form-control\" name=\"zomatoID\" value=\"{{ restaurant.zomatoID }}\" id=\"zomatoID\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"zomatoID\" value=\"\" id=\"zomatoID\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.cuisines %}\r\n    <input type=\"text\" class=\"form-control\" name=\"cuisines\" value=\"{{ restaurant.cuisines }}\" id=\"cuisines\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"cuisines\" value=\"\" id=\"cuisines\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.establishment %}\r\n    <input type=\"text\" class=\"form-control\" name=\"establishment\" value=\"{{ restaurant.establishment }}\" id=\"establishment\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"establishment\" value=\"\" id=\"establishment\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.rating %}\r\n    <input type=\"text\" class=\"form-control\" name=\"rating\" value=\"{{ restaurant.rating }}\" id=\"rating\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"rating\" value=\"\" id=\"rating\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.votes %}\r\n    <input type=\"text\" class=\"form-control\" name=\"votes\" value=\"{{ restaurant.votes }}\" id=\"votes\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"votes\" value=\"\" id=\"votes\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.rating_text %}\r\n    <input type=\"text\" class=\"form-control\" name=\"rating_text\" value=\"{{ restaurant.rating_text }}\" id=\"rating_text\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"rating_text\" value=\"\" id=\"rating_text\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.pricerange %}\r\n    <input type=\"text\" class=\"form-control\" name=\"pricerange\" id=\"pricerange\" value=\"{{ restaurant.pricerange }}\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"pricerange\" value=\"\" id=\"pricerange\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.avgfortwo %}\r\n    <input type=\"text\" class=\"form-control\" name=\"avgfortwo\" value=\"{{ restaurant.avgfortwo }}\" id=\"avgfortwo\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"avgfortwo\" value=\"\" id=\"avgfortwo\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.takeaway %}\r\n    <input type=\"text\" class=\"form-control\" name=\"takeaway\" value=\"{{ restaurant.takeaway }}\" id=\"takeaway\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"takeaway\" value=\"\" id=\"takeaway\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.delivery %}\r\n    <input type=\"text\" class=\"form-control\" name=\"delivery\" value=\"{{ restaurant.delivery }}\" id=\"delivery\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"delivery\" value=\"\" id=\"delivery\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.vegetarian %}\r\n    <input type=\"text\" class=\"form-control\" name=\"vegetarian\" value=\"{{ restaurant.vegetarian }}\" id=\"vegetarian\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"vegetarian\" value=\"\" id=\"vegetarian\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.vegan %}\r\n    <input type=\"text\" class=\"form-control\" name=\"vegan\" value=\"{{ restaurant.vegan }}\" id=\"vegan\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"vegan\" value=\"\" id=\"vegan\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.gluten_free %}\r\n    <input type=\"text\" class=\"form-control\" name=\"gluten_free\" value=\"{{ restaurant.gluten_free }}\" id=\"gluten_free\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"gluten_free\" value=\"\" id=\"gluten_free\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.latitude %}\r\n    <input type=\"text\" class=\"form-control\" name=\"latitude\" value=\"{{ restaurant.latitude }}\" id=\"latitude\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"latitude\" value=\"\" id=\"latitude\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n\r\n    {% if restaurant.longitude %}\r\n    <input type=\"text\" class=\"form-control\" name=\"longitude\" value=\"{{ restaurant.longitude }}\" id=\"longitude\" readonly style=\"display: none;\">\r\n    {% else %}\r\n    <input type=\"text\" class=\"form-control\" name=\"longitude\" value=\"\" id=\"longitude\" readonly style=\"display: none;\">\r\n    {% endif %}\r\n</form>\r\n\r\n<!-- javascript to display rating value -->\r\n<script>\r\n    var slider = document.getElementById(\"user_rating\");\r\n    var output = document.getElementById(\"user_ratingvalue\");\r\n    output.innerHTML = slider.value;\r\n\r\n    slider.oninput = function() {\r\n      output.innerHTML = this.value;\r\n    }\r\n</script>\r\n\r\n<!-- javascript and logic to check the correct pricerange radio -->\r\n{% if restaurant.pricerange is 1 %}\r\n<script>\r\n    document.getElementById('$').checked = true;\r\n</script>\r\n{% elif restaurant.pricerange is 2 %}\r\n<script>\r\n    document.getElementById('$$').checked = true;\r\n</script>\r\n{% elif restaurant.pricerange is 3 %}\r\n<script>\r\n    document.getElementById('$$$').checked = true;\r\n</script>\r\n{% elif restaurant.pricerange is 4 %}\r\n<script>\r\n    document.getElementById('$$$$').checked = true;\r\n</script>\r\n{% endif %}\r\n\r\n<!-- javascript and logic for all yes/no options -->\r\n<!-- TAKEAWAY -->\r\n{% if restaurant.takeaway %}\r\n<script>\r\n    document.getElementById('takeawayTrue').checked = true;\r\n</script>\r\n{% else %}\r\n<script>\r\n    document.getElementById('takeawayFalse').checked = true;\r\n</script>\r\n{% endif %}\r\n\r\n<!-- DELIVERY -->\r\n{% if restaurant.delivery %}\r\n<script>\r\n    document.getElementById('deliveryTrue').checked = true;\r\n</script>\r\n{% else %}\r\n<script>\r\n    document.getElementById('deliveryFalse').checked = true;\r\n</script>\r\n{% endif %}\r\n\r\n<!-- VEGETARIAN -->\r\n{% if restaurant.vegetarian %}\r\n<script>\r\n    document.getElementById('vegetarianTrue').checked = true;\r\n</script>\r\n{% else %}\r\n<script>\r\n    document.getElementById('vegetarianFalse').checked = true;\r\n</script>\r\n{% endif %}\r\n\r\n<!-- VEGAN -->\r\n{% if restaurant.vegan %}\r\n<script>\r\n    document.getElementById('veganTrue').checked = true;\r\n</script>\r\n{% else %}\r\n<script>\r\n    document.getElementById('veganFalse').checked = true;\r\n</script>\r\n{% endif %}\r\n\r\n<!-- GLUTEN FREE -->\r\n{% if restaurant.gluten_free %}\r\n<script>\r\n    document.getElementById('gluten_freeTrue').checked = true;\r\n</script>\r\n{% else %}\r\n<script>\r\n    document.getElementById('gluten_freeFalse').checked = true;\r\n</script>\r\n{% endif %}\r\n\r\n\r\n<!-- DELETE FUNCTIONALITY -->\r\n<!-- this additional form is hidden and holds the django url to start the delete function in views.py -->\r\n<form id=\"hiddenForm\" action=\"{% url 'RestaurantEditDelete' restaurant.pk %}\" method=\"POST\">\r\n    {% csrf_token %}\r\n</form>\r\n<!-- javascript attached to the modal delete button so that the hidden form can actually be submitted -->\r\n<script type=\"text/javascript\">\r\n    function deleteForm() {document.getElementById(\"hiddenForm\").submit();}\r\n</script>\r\n\r\n\r\n{% endblock %}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_edit.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/RestaurantApp/templates/RestaurantApp/RestaurantApp_edit.html	(date 1600824271293)
+@@ -4,357 +4,57 @@
+ 
+ {% block content %}
+ 
+-<!-- Delete Confirmation Modal -->
++<!-- Delete Modal, hidden until first delete is clicked -->
+ <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+   <div class="modal-dialog modal-dialog-centered">
+     <div class="modal-content">
+       <div class="modal-header">
+-        <h3 class="modal-title mydeletetitle" id="deleteModalLabel">Confirm Delete</h3>
++        <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+           <span aria-hidden="true">&times;</span>
+         </button>
+       </div>
+       <div class="modal-body">
+-          <h5 class="w-75 mx-auto">Are you sure you want to remove <br><span class="mylisttitle">{{ restaurant.name|title }}</span> from MyList?</h5>
++        Are you sure you want to remove {{ restaurant.name|title }}?
+       </div>
+       <div class="modal-footer">
+-          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+-          <button type="submit" class="btn btn-outline-danger deletemodalbutton" onclick="deleteForm()">Delete</button>
+-      </div>                                            <!-- ^ triggering delete function -->
++          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
++          <button type="submit" class="btn btn-primary" onclick="deleteForm()">Delete</button>
++      </div>                                       <!-- ^THIS LINE ABOVE^ is the important javascript delete function -->
+     </div>
+   </div>
+ </div>
+ 
+ 
+ 
+-
+-
+-<h1 class="text-muted mycontainer">Editing <span class="mylisttitle">{{ restaurant.name|title }}</span></h1>
+-<h6 class="text-muted mt-3">Please note: all changes are reflected in MyList and do not affect search results</h6>
+-<hr class="my-4 w-75">
+-
+-        <!-- error message if form is submitted but still invalid -->
+-        {% for message in messages %}
+-                    <div class="alert alert-warning col w-75 mx-auto whoopsmsg">
+-                        <a class="close" href="#" data-dismiss="alert">×</a>
+-                        <h4>Save unsuccessful</h4>
+-                            {{ message }}
+-                    </div>
+-        {% endfor %}
+ 
+-<!-- form starts before buttons at top of page so they can be used to submit -->
+-<form method="POST">
+-    {% csrf_token %}
+-    <div class="row mt-5 mb-3 w-50 mx-auto">
+-        <div class="col mx-auto">
+-            <button type="submit" class="btn btn-lg btn-block btn-outline-secondary submitchange">Submit</button>
+-        </div>
+-        <div class="col mx-auto">
+-            <button type="button" class="btn btn-lg btn-block btn-outline-secondary deletechange" data-toggle="modal" data-target="#deleteModal">Remove</button>
+-        </div>
+-    </div>
+-
+-
+-    <!-- displays a list of all restaurants saved locally in database -->
+-    <div class="container-fluid footer_buffer">
+-        <div class="card w-75 mt-5 mx-auto">
+-            <div class="row no-gutters">
+-                <!-- TOP SECTION displaying image and name -->
+-                <div class="col-md-5">
+-                    {% if restaurant.img is not None %}
+-                    <img src="{{ restaurant.img }}" height="225px" class="card-img cardimgs" alt="(Not displaying or link is corrupted)">
+-                    {% else %}
+-                    <img src="" class="card-img cardimgs" height="200px" alt="No saved image" style="min-height: 100%;">
+-                    {% endif %}
+-                </div>
+-                <div class="col-md-7">
+-                    <div class="card-body text-left mylistlabels">
+-                            <small class="text-muted">Only required fields are Restaurant Name* and Address*</small><br>
+-                            <small class="text-muted">To change the restaurant's photo, update the Link to Restaurant's Image field</small>
+-                        <!-- NAME -->
+-                        <div class="form-group mt-5">
+-                            <label for="name">Restaurant*</label>
+-                            <input type="text" class="form-control" name="name" value="{{ restaurant.name|title }}" id="name" maxlength="255" required>
+-                        </div>
+-                    </div>
+-                </div>
+-                <!-- MAIN BODY SECTION, showing bulk of data -->
+-                <div class="col-md-12">
+-                    <div class="card-body text-left mylistlabels">
+-                        <div class="form-row">
+-                            <!-- MYRATING -->
+-                            <div class="form-group col-md-6">
+-                                <label for="user_rating" style="font-size: 1.3em;">MyRating</label><br>
+-                                <small class="text-muted">Add your own rating for this restaurant!</small>
+-                                <div class="form-group">
+-                                    <input type="range" class="w-75 form-control-range pt-10" name="user_rating" value="{{ restaurant.user_rating }}" id="user_rating" min="1.0" max="5.0" step=".1">
+-                                </div>
+-                                <div class="w-75 form-group text-center">
+-                                    <small class="text-muted font-weight-bold" id="user_ratingvalue"></small>
+-                                </div>
+-                            </div>
+-                            <!-- MYCOMMENTS -->
+-                            <div class="form-group col-md-6">
+-                                <label for="user_comments" style="font-size: 1.3em;">MyComments</label>
+-                                {% if restaurant.user_comments %}
+-                                <textarea class="form-control" id="user_comments" name="user_comments" rows="3" maxlength="500" placeholder="Add your own comments about the restaurant here! Great food? Bad atmosphere? Use this as your own personal sticky note!">{{ restaurant.user_comments}}</textarea>
+-                                {% else %}
+-                                <textarea class="form-control" id="user_comments" name="user_comments" rows="3" maxlength="500" placeholder="Add your own comments about the restaurant here! Great food? Bad atmosphere? Use this as your own personal sticky note!"></textarea>
+-                                {% endif %}
+-                            </div>
+-                        </div>
+-                        <!-- ADDRESS -->
+-                        <div class="form-group">
+-                            <label for="address">Address*</label>
+-                            <input type="text" class="form-control" name="address" value="{{ restaurant.address }}" id="address" maxlength="255" required>
+-                            <small class="text-muted">Provide street, city, state/province and zip code all on this line, ie: &nbsp; 123 Main Street Houston, TX 77002</small>
+-                        </div>
+-                        <!-- PHONE -->
+-                        <div class="form-group">
+-                            <label for="phone">Phone number(s)</label>
+-                            <input type="text" class="form-control" name="phone" value="{{ restaurant.phone }}" id="phone" maxlength="100">
+-                            <small class="text-muted">Use a comma to separate phone numbers, ie: &nbsp;(713) 555-5555, (713) 555-5556</small>
+-                        </div>
+-                        <!-- HOURS -->
+-                        <div class="form-group">
+-                            <label for="hours">Hours</label>
+-                            <input type="text" class="form-control" name="hours" value="{{ restaurant.hours }}" id="hours" maxlength="255">
+-                            <small class="text-muted">Store days in parentheses, ie: &nbsp;8 AM to 10 PM (Mon, Sun), 8 AM to 12 Midnight (Tue-Sat)</small>
+-                        </div>
+-                        <!-- URL -->
+-                        <div class="form-group">
+-                            <label for="url">Link to Restaurant</label>
+-                            {% if restaurant.url %}
+-                            <input type="url" class="form-control" name="url" value="{{ restaurant.url }}" id="url" maxlength="200">
+-                            {% else %}
+-                            <input type="url" class="form-control" name="url" value="" id="url" maxlength="200">
+-                            {% endif %}
+-                        </div>
+-                        <!-- IMG -->
+-                        <div class="form-group">
+-                            <label for="img">Link to Restaurant's Image</label>
+-                            {% if restaurant.img %}
+-                            <input type="url" class="form-control" name="img" value="{{ restaurant.img }}" id="img" maxlength="200">
+-                            {% else %}
+-                            <input type="url" class="form-control" name="img" value="" id="img" maxlength="200">
+-                            {% endif %}
+-                            <small class="text-muted">Update this link to change the restaurant's photo</small>
+-                        </div>
+-                        <!-- MENU -->
+-                        <div class="form-group">
+-                            <label for="menu">Link to Restaurant's Menu</label>
+-                            {% if restaurant.menu %}
+-                            <input type="url" class="form-control" name="menu" value="{{ restaurant.menu }}" id="menu" maxlength="200">
+-                            {% else %}
+-                            <input type="url" class="form-control" name="menu" value="" id="menu" maxlength="200">
+-                            {% endif %}
+-                        </div>
+-                    </div>
+-                    <!-- SUBMIT/REMOVE BUTTONS -->
+-                    <div class="row mt-4 mb-5 w-75 mx-auto">
+-                        <div class="col mb-4 mx-auto">
+-                            <button type="submit" class="btn btn-lg btn-block btn-outline-secondary submitchange">Submit</button>
+-                        </div>
+-                        <div class="col mb-4 mx-auto">
+-                            <button type="button" class="btn btn-lg btn-block btn-outline-secondary deletechange" data-toggle="modal" data-target="#deleteModal">Remove</button>
+-                        </div>
+-                    </div>
+-                </div>
+-            </div>
+-        </div>
+-    </div>
+-    <!-- alright so this part -->
+-    <!-- this is keeping track of any values the form already has that we do NOT want the user interacting with and keeping them consistent -->
+-    <!-- the main issue - a lot of fields are null, however after a query, we receive None -->
+-    <!-- None does not get reentered as null, thus for all of the ELSE statements, value is left blank -->
+-    <!-- essentially:   if none, value is "" -->
+-    {% if restaurant.zomatoID %}
+-    <input type="text" class="form-control" name="zomatoID" value="{{ restaurant.zomatoID }}" id="zomatoID" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="zomatoID" value="" id="zomatoID" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.cuisines %}
+-    <input type="text" class="form-control" name="cuisines" value="{{ restaurant.cuisines }}" id="cuisines" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="cuisines" value="" id="cuisines" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.establishment %}
+-    <input type="text" class="form-control" name="establishment" value="{{ restaurant.establishment }}" id="establishment" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="establishment" value="" id="establishment" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.rating %}
+-    <input type="text" class="form-control" name="rating" value="{{ restaurant.rating }}" id="rating" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="rating" value="" id="rating" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.votes %}
+-    <input type="text" class="form-control" name="votes" value="{{ restaurant.votes }}" id="votes" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="votes" value="" id="votes" readonly style="display: none;">
+-    {% endif %}
++<h1>Editing {{ restaurant.name|title }}</h1>
++
++<div>
++    <form method="POST">
++        {% csrf_token %}
++        <table class="addTable">
++        {{ form }}
++        </table>
++        <p>(Bubble options are not required)</p>
++        <input type="submit" value="Save Changes">
++        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#deleteModal">
++                Delete
++        </button>
++    </form>
++</div>
+ 
+-    {% if restaurant.rating_text %}
+-    <input type="text" class="form-control" name="rating_text" value="{{ restaurant.rating_text }}" id="rating_text" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="rating_text" value="" id="rating_text" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.pricerange %}
+-    <input type="text" class="form-control" name="pricerange" id="pricerange" value="{{ restaurant.pricerange }}" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="pricerange" value="" id="pricerange" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.avgfortwo %}
+-    <input type="text" class="form-control" name="avgfortwo" value="{{ restaurant.avgfortwo }}" id="avgfortwo" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="avgfortwo" value="" id="avgfortwo" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.takeaway %}
+-    <input type="text" class="form-control" name="takeaway" value="{{ restaurant.takeaway }}" id="takeaway" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="takeaway" value="" id="takeaway" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.delivery %}
+-    <input type="text" class="form-control" name="delivery" value="{{ restaurant.delivery }}" id="delivery" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="delivery" value="" id="delivery" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.vegetarian %}
+-    <input type="text" class="form-control" name="vegetarian" value="{{ restaurant.vegetarian }}" id="vegetarian" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="vegetarian" value="" id="vegetarian" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.vegan %}
+-    <input type="text" class="form-control" name="vegan" value="{{ restaurant.vegan }}" id="vegan" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="vegan" value="" id="vegan" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.gluten_free %}
+-    <input type="text" class="form-control" name="gluten_free" value="{{ restaurant.gluten_free }}" id="gluten_free" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="gluten_free" value="" id="gluten_free" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.latitude %}
+-    <input type="text" class="form-control" name="latitude" value="{{ restaurant.latitude }}" id="latitude" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="latitude" value="" id="latitude" readonly style="display: none;">
+-    {% endif %}
+-
+-    {% if restaurant.longitude %}
+-    <input type="text" class="form-control" name="longitude" value="{{ restaurant.longitude }}" id="longitude" readonly style="display: none;">
+-    {% else %}
+-    <input type="text" class="form-control" name="longitude" value="" id="longitude" readonly style="display: none;">
+-    {% endif %}
+-</form>
+-
+-<!-- javascript to display rating value -->
+-<script>
+-    var slider = document.getElementById("user_rating");
+-    var output = document.getElementById("user_ratingvalue");
+-    output.innerHTML = slider.value;
+-
+-    slider.oninput = function() {
+-      output.innerHTML = this.value;
+-    }
+-</script>
+-
+-<!-- javascript and logic to check the correct pricerange radio -->
+-{% if restaurant.pricerange is 1 %}
+-<script>
+-    document.getElementById('$').checked = true;
+-</script>
+-{% elif restaurant.pricerange is 2 %}
+-<script>
+-    document.getElementById('$$').checked = true;
+-</script>
+-{% elif restaurant.pricerange is 3 %}
+-<script>
+-    document.getElementById('$$$').checked = true;
+-</script>
+-{% elif restaurant.pricerange is 4 %}
+-<script>
+-    document.getElementById('$$$$').checked = true;
+-</script>
+-{% endif %}
+-
+-<!-- javascript and logic for all yes/no options -->
+-<!-- TAKEAWAY -->
+-{% if restaurant.takeaway %}
+-<script>
+-    document.getElementById('takeawayTrue').checked = true;
+-</script>
+-{% else %}
+-<script>
+-    document.getElementById('takeawayFalse').checked = true;
+-</script>
+-{% endif %}
+-
+-<!-- DELIVERY -->
+-{% if restaurant.delivery %}
+-<script>
+-    document.getElementById('deliveryTrue').checked = true;
+-</script>
+-{% else %}
+-<script>
+-    document.getElementById('deliveryFalse').checked = true;
+-</script>
+-{% endif %}
+-
+-<!-- VEGETARIAN -->
+-{% if restaurant.vegetarian %}
+-<script>
+-    document.getElementById('vegetarianTrue').checked = true;
+-</script>
+-{% else %}
+-<script>
+-    document.getElementById('vegetarianFalse').checked = true;
+-</script>
+-{% endif %}
+-
+-<!-- VEGAN -->
+-{% if restaurant.vegan %}
+-<script>
+-    document.getElementById('veganTrue').checked = true;
+-</script>
+-{% else %}
+-<script>
+-    document.getElementById('veganFalse').checked = true;
+-</script>
+-{% endif %}
+-
+-<!-- GLUTEN FREE -->
+-{% if restaurant.gluten_free %}
+-<script>
+-    document.getElementById('gluten_freeTrue').checked = true;
+-</script>
+-{% else %}
+-<script>
+-    document.getElementById('gluten_freeFalse').checked = true;
+-</script>
+-{% endif %}
+ 
+ 
+-<!-- DELETE FUNCTIONALITY -->
+-<!-- this additional form is hidden and holds the django url to start the delete function in views.py -->
+-<form id="hiddenForm" action="{% url 'RestaurantEditDelete' restaurant.pk %}" method="POST">
+-    {% csrf_token %}
+-</form>
+-<!-- javascript attached to the modal delete button so that the hidden form can actually be submitted -->
+-<script type="text/javascript">
+-    function deleteForm() {document.getElementById("hiddenForm").submit();}
+-</script>
++    <!-- DELETE FUNCTIONALITY -->
++    <!-- this additional form is hidden and holds the url to start the delete function in views.py -->
++    <form id="hiddenForm" action="{% url 'RestaurantDelete' restaurant.pk %}" method="POST">
++        {% csrf_token %}
++    </form>
++    <!-- this is the javascript attached to the modal delete button so that the hidden form can actually be submitted -->
++    <script type="text/javascript">
++        function deleteForm() {document.getElementById("hiddenForm").submit();}
++    </script>
+ 
+ 
+ {% endblock %}
+\ No newline at end of file
+Index: AppBuilder9000/ComicApp/templates/ComicApp/ComicApp_Navbar.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><nav class=\"nb navbar navbar-expand-sm bg-dark sticky-top\">\r\n  <!-- Brand/logo -->\r\n  <a class=\"logo navbar-brand text-white rounded-circle border border-white\" href=\"{% url 'ComicHome' %}\">CD</a>\r\n  <a class=\"logo-text navbar-brand text-white border-right\" href=\"{% url 'ComicHome' %}\">Comic Database</a>\r\n  <!-- Links -->\r\n  <div class=\"navbar-nav\">\r\n    <a class=\"nav1 nav-item nav-link text-white\" href=\"{% url 'ComicReview' %}\">Review</a>\r\n  </div>\r\n  <div class=\"navbar-nav ml-auto\">\r\n    <a class=\"sign-up nav-item nav-link text-white border border-white\" href=\"{% url 'ComicSignUp' %}\">Sign Up</a>\r\n  </div>\r\n</nav>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/ComicApp/templates/ComicApp/ComicApp_Navbar.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/ComicApp/templates/ComicApp/ComicApp_Navbar.html	(date 1600824270654)
+@@ -1,12 +1,10 @@
+-<nav class="nb navbar navbar-expand-sm bg-dark sticky-top">
++<nav class="navbar navbar-expand-sm bg-dark sticky-top">
+   <!-- Brand/logo -->
+-  <a class="logo navbar-brand text-white rounded-circle border border-white" href="{% url 'ComicHome' %}">CD</a>
+-  <a class="logo-text navbar-brand text-white border-right" href="{% url 'ComicHome' %}">Comic Database</a>
++  <a class="navbar-brand text-white" href="#">Comic Database</a>
+   <!-- Links -->
+-  <div class="navbar-nav">
+-    <a class="nav1 nav-item nav-link text-white" href="{% url 'ComicReview' %}">Review</a>
+-  </div>
+-  <div class="navbar-nav ml-auto">
+-    <a class="sign-up nav-item nav-link text-white border border-white" href="{% url 'ComicSignUp' %}">Sign Up</a>
+-  </div>
++  <ul class="navbar-nav ">
++    <li class="nav-item active">
++      <a class="nav-link text-white" href="#">Home</a>
++    </li>
++  </ul>
+ </nav>
+\ No newline at end of file
+Index: AppBuilder9000/ComicApp/templates/ComicApp/ComicApp_Base.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% load static %}\r\n\r\n{% load bootstrap4 %}\r\n\r\n{% bootstrap_css %}\r\n{% bootstrap_javascript jquery='full' %}\r\n\r\n<!DOCTYPE html>\r\n<html lang=\"en\" class=\"bg_img\">\r\n\t<head>\r\n        <title>{% block title %}{% endblock %}</title>\r\n\r\n\t    <meta charset=\"utf-8\">\r\n\t\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n\r\n        <link rel=\"stylesheet\" type=text/css href=\"{% static 'ComicApp/css/ComicApp_Base_Styles.css' %}\">\r\n        <link rel=\"stylesheet\" type=text/css href=\"{% static 'ComicApp/css/ComicApp_CreateReview_Styles.css' %}\">\r\n        <link rel=\"stylesheet\" type=text/css href=\"{% static 'ComicApp/css/ComicApp_Navbar_Styles.css' %}\">\r\n        <link rel=\"stylesheet\" type=text/css href=\"{% static 'ComicApp/css/ComicApp_Signup_Styles.css' %}\">\r\n\t</head>\r\n    <body>\r\n        {% include \"ComicApp/ComicApp_navbar.html\" %}\r\n\r\n        <div class=\"page-container\">\r\n            <header class=\"header-title\">\r\n                <h1 class=\"text-center my-2\">{% block header %}{% endblock %}</h1>\r\n\t\t    </header>\r\n            {% block content %}{% endblock %}\r\n        </div>\r\n\r\n        {% include \"ComicApp/ComicApp_footer.html\" %}\r\n    </body>\r\n</html>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- AppBuilder9000/ComicApp/templates/ComicApp/ComicApp_Base.html	(revision effe18c1ecb8de4b6967af0db0ca069c90ddbb29)
++++ AppBuilder9000/ComicApp/templates/ComicApp/ComicApp_Base.html	(date 1600824270683)
+@@ -12,19 +12,15 @@
+ 
+ 	    <meta charset="utf-8">
+ 		<meta name="viewport" content="width=device-width, initial-scale=1">
+-
+-        <link rel="stylesheet" type=text/css href="{% static 'ComicApp/css/ComicApp_Base_Styles.css' %}">
+-        <link rel="stylesheet" type=text/css href="{% static 'ComicApp/css/ComicApp_CreateReview_Styles.css' %}">
+-        <link rel="stylesheet" type=text/css href="{% static 'ComicApp/css/ComicApp_Navbar_Styles.css' %}">
+-        <link rel="stylesheet" type=text/css href="{% static 'ComicApp/css/ComicApp_Signup_Styles.css' %}">
+ 	</head>
+-    <body>
++    <body style="background-color:ghostwhite;">
+         {% include "ComicApp/ComicApp_navbar.html" %}
+ 
+-        <div class="page-container">
++        <div class="page_container">
+             <header class="header-title">
+                 <h1 class="text-center my-2">{% block header %}{% endblock %}</h1>
+ 		    </header>
++            <img class="mx-auto d-block my-4" src="{% static 'ComicApp/images/work-in-progress.png' %}" alt="Comic Database">
+             {% block content %}{% endblock %}
+         </div>
+ 

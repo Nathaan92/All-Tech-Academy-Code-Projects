@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+
+{% block page-title %}App Builder 9000{% endblock %}
+{% block page-subtitle %}Python Live Project{% endblock %}
+{% block button1 %}<a href="#apps" class="contact-btn">Portfolio</a>{% endblock %}
+{% block button2 %}<a href="#about" class="contact-btn">Contact Us</a>{% endblock %}
+
+{% block appcontent %}
+    <section class="masonry-grid" id="apps">
+        <br><br>
+        <h2 class="sub-title">App Directory</h2>
+          <div class="grid">
+
+              <!-- StocksApp -->
+              <a href="{% url 'Stockshome' %}" class="grid-item app-image"><img
+                  src="{% static 'images/app-images/stockfront.jpg' %}">
+                  <div class="fadedbox">
+                      <div class="title text"> StockApp </div>
+                  </div>
+              </a>
+
+              <!-- RestaurantApp -->
+              <a href="{% url 'RestaurantHome' %}" class="grid-item app-image">
+                <img src="{% static 'images/app-images/RestaurantApp_jay-wennington-unsplash.jpg' %}" alt="RestaurantApp">
+                    <div class="fadedbox">
+                        <div class="title text"> Restaurant Finder </div>
+                    </div>
+              </a>
+
+              <!-- FishKeepingApp -->
+              <a href="{% url 'FishKeepingHome' %}" class="grid-item app-image">
+                  <img src="{% static 'images/app-images/FishKeepingApp_GoldfishTank.jpg' %}" alt="Fish Keeping Guides">
+                  <div class="fadedbox">
+                      <div class="title text"> Fish Keeping Guides </div>
+                  </div>
+              </a>
+
+              <!-- HikingApp -->
+              <a href="{% url 'happ_home' %}" class="grid-item app-image">
+                  <img src="{% static 'images/app-images/HikingApp.jpg' %}" alt="Hiking App">
+                  <div class="fadedbox">
+                      <div class="title text"> Happ  </div>
+                      <div class="title text">The Hiking App</div>
+                  </div>
+              </a>
+
+              <!-- ComicApp -->
+              <a href="{% url 'ComicHome' %}" class="grid-item app-image">
+                  <img src="{% static 'images/app-images/ComicApp.jpg' %}" alt="Comic Database">
+                  <div class="fadedbox">
+                      <div class="title text"> Comic Database </div>
+                  </div>
+              </a>
+
+              <!-- Cocktail Recipe App -->
+              <a href="{% url 'CocktailRecipesHome' %}" class="grid-item app-image">
+                <img src="{% static 'images/app-images/cocktails-promo.jpg' %}" alt="Cocktails Icon">
+                    <div class="fadedbox">
+                        <div class="title text"> Cocktail Recipes </div>
+                    </div>
+              </a>
+
+              <!-- Pup App -->
+              <a href="{% url 'PupHome' %}" class="grid-item app-image">
+                <img src="{% static 'images/app-images/boco1.jpg' %}" alt="Dog Icon">
+                    <div class="fadedbox">
+                        <div class="title text"> Pup App </div>
+                    </div>
+              </a>
+
+              <!-- Catch Identification App -->
+              <a href="{% url 'CatchIdentificationAppHome' %}" class="grid-item app-image">
+                <img src="{% static 'images/app-images/CatchIdentificationApp.png' %}" alt="Catch of the Day Icon">
+                    <div class="fadedbox">
+                        <div class="title text"> Catch of the Database </div>
+                    </div>
+              </a>
+
+
+            <!--RealEstateApp -->
+              <a href="{% url 'RealEstateHome' %}" class="grid-item app-image">
+                  <img src="{% static 'images/app-images/house_cover.jpg' %}" alt="Building">
+                  <div class="fadedbox">
+                      <div class="title text"> Real Estate </div>
+                  </div>
+              </a>
+          </div>
+    </section>
+
+    <section class="beating-heart" id="about">
+        <div class="wrapper">
+            <h2 class="sub-title">About Us</h2>
+            <p>We're creating software designed to help hobbyists keep track of their collections of items <br/>
+                as well as interact with APIs and use DataScraping to get up to date information on things <br/>
+                related to those collections and hobbies. This project is built using Python, Django, SQLite,
+                and HTML/CSS.</p>
+            <span>We</span>
+            <svg class="heart" viewBox="0 0 50 50">
+                <path style="fill:red;" d="M24.85,10.126c2.018-4.783,6.628-8.125,11.99-8.125c7.223,0,12.425,6.179,13.079,13.543
+                	c0,0,0.353,1.828-0.424,5.119c-1.058,4.482-3.545,8.464-6.898,11.503L24.85,48L7.402,32.165c-3.353-3.038-5.84-7.021-6.898-11.503
+                	c-0.777-3.291-0.424-5.119-0.424-5.119C0.734,8.179,5.936,2,13.159,2C18.522,2,22.832,5.343,24.85,10.126z"/>
+            </svg>
+            <span>Python</span>
+        </div>
+    </section>
+{% endblock %}
+
