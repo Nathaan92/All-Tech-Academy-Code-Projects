@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Three Functions\Three Functions\bin\Debug\Three Functions.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Three Functions\Three Functions\bin\Debug\Three Functions.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Three Functions\Three Functions\bin\Debug\Three Functions.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Three Functions\Three Functions\obj\Debug\Three Functions.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Three Functions\Three Functions\obj\Debug\Three Functions.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Three Functions\Three Functions\obj\Debug\Three Functions.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Three Functions\Three Functions\obj\Debug\Three Functions.pdb

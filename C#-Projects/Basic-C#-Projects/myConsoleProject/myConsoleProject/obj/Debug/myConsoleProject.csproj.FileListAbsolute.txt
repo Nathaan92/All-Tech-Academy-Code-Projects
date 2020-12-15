@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\myConsoleProject\myConsoleProject\bin\Debug\myConsoleProject.exe.config
+C:\Users\natha\Desktop\C#\myConsoleProject\myConsoleProject\bin\Debug\myConsoleProject.exe
+C:\Users\natha\Desktop\C#\myConsoleProject\myConsoleProject\bin\Debug\myConsoleProject.pdb
+C:\Users\natha\Desktop\C#\myConsoleProject\myConsoleProject\obj\Debug\myConsoleProject.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\myConsoleProject\myConsoleProject\obj\Debug\myConsoleProject.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\myConsoleProject\myConsoleProject\obj\Debug\myConsoleProject.exe
+C:\Users\natha\Desktop\C#\myConsoleProject\myConsoleProject\obj\Debug\myConsoleProject.pdb

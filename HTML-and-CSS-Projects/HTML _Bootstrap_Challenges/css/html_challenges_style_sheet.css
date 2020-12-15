@@ -1,0 +1,136 @@
+body    {
+    background-color: rgb(138, 136, 27);
+}
+
+.tree   {
+    position: relative;
+}
+
+.pic1   {
+    filter: sepia(100%);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 50%;
+    width: 50%;
+}
+
+.overlay {
+    position: absolute;
+    top: 37%;
+    left: 15%;
+    right: 15%;
+     opacity: 0;
+    transition: 2s ease;
+ }
+  
+  .tree:hover .overlay {
+    opacity: 1;
+  }
+  .heading    {
+    color: rgba(190, 41, 21, 0.822);
+    font-size: 100pt;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    webkit-transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+footer  {
+    border-radius: 20pt;
+    border-style: none;
+    text-align: center;
+    font-weight: bold;
+    background-color:rgba(190, 41, 21, 0.822);
+    width: 100%;
+}
+
+footer, ul, li{
+  list-style: none;
+  display: inline-block;
+  float: none;
+}
+
+.table, th {
+    color: black;
+    text-align: center;
+    border-style: ridge;
+    border-color: gray;
+    table-layout: fixed;
+    background-color: rgba(190, 41, 21, 0.822);
+}
+
+td {
+    color: black;
+    background-color: rgb(138, 136, 27);
+    border-style: none;
+    border-radius: 10px;
+    text-align: center;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    width: 33%;
+}
+
+.navbar  {
+    overflow: hidden;
+    background-color: rgba(190, 41, 21, 0.822);
+    border-radius: 20pt;
+    border-style: none;
+    margin-bottom: 10px;
+  }
+
+.navbar a {
+    float: left;
+    display: block;
+    color: black;
+    text-align: center;
+    font-weight: bold;
+    padding: 14px 16px;
+    text-decoration: none;
+  }
+
+.navbar a:hover {
+    background:rgb(138, 136, 27);
+    color: black;
+  }
+
+  .column   {
+      float: left;
+      width: 20%;
+      padding-left: 10%;
+      padding-bottom: 10px;
+  }
+
+  .row:after {
+      content: "";
+      display: table;
+      clear: both;
+  }
+  
+  p {
+      text-indent: 2em;
+      margin: 5pt;
+  }
+  
+  p:hover {
+      background-color: rgba(190, 41, 21, 0.822);
+      border-style: none;
+      border-radius: 10pt;
+  }
+
+  .name {
+      text-align: center;
+      text-decoration: underline;
+  }
+
+  .bv {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+  }

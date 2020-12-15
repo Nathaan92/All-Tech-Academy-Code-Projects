@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\MathaAndComparisonOperators\MathaAndComparisonOperators\bin\Debug\MathaAndComparisonOperators.exe.config
+C:\Users\natha\Desktop\C#\MathaAndComparisonOperators\MathaAndComparisonOperators\bin\Debug\MathaAndComparisonOperators.exe
+C:\Users\natha\Desktop\C#\MathaAndComparisonOperators\MathaAndComparisonOperators\bin\Debug\MathaAndComparisonOperators.pdb
+C:\Users\natha\Desktop\C#\MathaAndComparisonOperators\MathaAndComparisonOperators\obj\Debug\MathaAndComparisonOperators.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\MathaAndComparisonOperators\MathaAndComparisonOperators\obj\Debug\MathaAndComparisonOperators.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\MathaAndComparisonOperators\MathaAndComparisonOperators\obj\Debug\MathaAndComparisonOperators.exe
+C:\Users\natha\Desktop\C#\MathaAndComparisonOperators\MathaAndComparisonOperators\obj\Debug\MathaAndComparisonOperators.pdb

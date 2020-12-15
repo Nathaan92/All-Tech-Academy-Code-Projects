@@ -1,0 +1,7 @@
+C:\Users\natha\source\repos\Assigment pg 300\Assigment pg 300\bin\Debug\Assigment pg 300.exe.config
+C:\Users\natha\source\repos\Assigment pg 300\Assigment pg 300\bin\Debug\Assigment pg 300.exe
+C:\Users\natha\source\repos\Assigment pg 300\Assigment pg 300\bin\Debug\Assigment pg 300.pdb
+C:\Users\natha\source\repos\Assigment pg 300\Assigment pg 300\obj\Debug\Assigment pg 300.csprojAssemblyReference.cache
+C:\Users\natha\source\repos\Assigment pg 300\Assigment pg 300\obj\Debug\Assigment pg 300.csproj.CoreCompileInputs.cache
+C:\Users\natha\source\repos\Assigment pg 300\Assigment pg 300\obj\Debug\Assigment pg 300.exe
+C:\Users\natha\source\repos\Assigment pg 300\Assigment pg 300\obj\Debug\Assigment pg 300.pdb

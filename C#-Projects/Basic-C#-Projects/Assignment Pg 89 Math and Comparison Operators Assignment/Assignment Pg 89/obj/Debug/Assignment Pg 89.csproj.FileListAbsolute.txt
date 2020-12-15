@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\Assignment Pg 89\Assignment Pg 89\bin\Debug\Assignment Pg 89.exe.config
+C:\Users\natha\Desktop\C#\Assignment Pg 89\Assignment Pg 89\bin\Debug\Assignment Pg 89.exe
+C:\Users\natha\Desktop\C#\Assignment Pg 89\Assignment Pg 89\bin\Debug\Assignment Pg 89.pdb
+C:\Users\natha\Desktop\C#\Assignment Pg 89\Assignment Pg 89\obj\Debug\Assignment Pg 89.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\Assignment Pg 89\Assignment Pg 89\obj\Debug\Assignment Pg 89.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\Assignment Pg 89\Assignment Pg 89\obj\Debug\Assignment Pg 89.exe
+C:\Users\natha\Desktop\C#\Assignment Pg 89\Assignment Pg 89\obj\Debug\Assignment Pg 89.pdb

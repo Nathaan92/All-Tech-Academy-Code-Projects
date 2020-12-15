@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\Assingment pg71\Assingment pg71\bin\Debug\Assingment pg71.exe.config
+C:\Users\natha\Desktop\C#\Assingment pg71\Assingment pg71\bin\Debug\Assingment pg71.exe
+C:\Users\natha\Desktop\C#\Assingment pg71\Assingment pg71\bin\Debug\Assingment pg71.pdb
+C:\Users\natha\Desktop\C#\Assingment pg71\Assingment pg71\obj\Debug\Assingment pg71.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\Assingment pg71\Assingment pg71\obj\Debug\Assingment pg71.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\Assingment pg71\Assingment pg71\obj\Debug\Assingment pg71.exe
+C:\Users\natha\Desktop\C#\Assingment pg71\Assingment pg71\obj\Debug\Assingment pg71.pdb

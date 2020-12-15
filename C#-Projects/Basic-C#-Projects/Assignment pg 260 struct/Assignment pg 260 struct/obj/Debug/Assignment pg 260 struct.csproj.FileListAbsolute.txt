@@ -1,0 +1,7 @@
+C:\Users\natha\source\repos\Assignment pg 260 struct\Assignment pg 260 struct\bin\Debug\Assignment pg 260 struct.exe.config
+C:\Users\natha\source\repos\Assignment pg 260 struct\Assignment pg 260 struct\bin\Debug\Assignment pg 260 struct.exe
+C:\Users\natha\source\repos\Assignment pg 260 struct\Assignment pg 260 struct\bin\Debug\Assignment pg 260 struct.pdb
+C:\Users\natha\source\repos\Assignment pg 260 struct\Assignment pg 260 struct\obj\Debug\Assignment pg 260 struct.csprojAssemblyReference.cache
+C:\Users\natha\source\repos\Assignment pg 260 struct\Assignment pg 260 struct\obj\Debug\Assignment pg 260 struct.csproj.CoreCompileInputs.cache
+C:\Users\natha\source\repos\Assignment pg 260 struct\Assignment pg 260 struct\obj\Debug\Assignment pg 260 struct.exe
+C:\Users\natha\source\repos\Assignment pg 260 struct\Assignment pg 260 struct\obj\Debug\Assignment pg 260 struct.pdb

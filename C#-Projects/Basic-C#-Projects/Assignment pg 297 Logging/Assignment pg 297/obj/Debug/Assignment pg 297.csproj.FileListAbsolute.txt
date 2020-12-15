@@ -1,0 +1,7 @@
+C:\Users\natha\source\repos\Assignment pg 297\Assignment pg 297\obj\Debug\Assignment pg 297.csprojAssemblyReference.cache
+C:\Users\natha\source\repos\Assignment pg 297\Assignment pg 297\obj\Debug\Assignment pg 297.csproj.CoreCompileInputs.cache
+C:\Users\natha\source\repos\Assignment pg 297\Assignment pg 297\bin\Debug\Assignment pg 297.exe.config
+C:\Users\natha\source\repos\Assignment pg 297\Assignment pg 297\bin\Debug\Assignment pg 297.exe
+C:\Users\natha\source\repos\Assignment pg 297\Assignment pg 297\bin\Debug\Assignment pg 297.pdb
+C:\Users\natha\source\repos\Assignment pg 297\Assignment pg 297\obj\Debug\Assignment pg 297.exe
+C:\Users\natha\source\repos\Assignment pg 297\Assignment pg 297\obj\Debug\Assignment pg 297.pdb

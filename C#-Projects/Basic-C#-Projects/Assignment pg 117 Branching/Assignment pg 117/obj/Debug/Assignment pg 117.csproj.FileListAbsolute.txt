@@ -1,0 +1,7 @@
+C:\Users\natha\source\repos\Assignment pg 117\Assignment pg 117\obj\Debug\Assignment pg 117.csprojAssemblyReference.cache
+C:\Users\natha\source\repos\Assignment pg 117\Assignment pg 117\obj\Debug\Assignment pg 117.csproj.CoreCompileInputs.cache
+C:\Users\natha\source\repos\Assignment pg 117\Assignment pg 117\bin\Debug\Assignment pg 117.exe.config
+C:\Users\natha\source\repos\Assignment pg 117\Assignment pg 117\bin\Debug\Assignment pg 117.exe
+C:\Users\natha\source\repos\Assignment pg 117\Assignment pg 117\bin\Debug\Assignment pg 117.pdb
+C:\Users\natha\source\repos\Assignment pg 117\Assignment pg 117\obj\Debug\Assignment pg 117.exe
+C:\Users\natha\source\repos\Assignment pg 117\Assignment pg 117\obj\Debug\Assignment pg 117.pdb

@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment Exception Handling\Assignment Exception Handling\bin\Debug\Assignment Exception Handling.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment Exception Handling\Assignment Exception Handling\bin\Debug\Assignment Exception Handling.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment Exception Handling\Assignment Exception Handling\bin\Debug\Assignment Exception Handling.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment Exception Handling\Assignment Exception Handling\obj\Debug\Assignment Exception Handling.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment Exception Handling\Assignment Exception Handling\obj\Debug\Assignment Exception Handling.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment Exception Handling\Assignment Exception Handling\obj\Debug\Assignment Exception Handling.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment Exception Handling\Assignment Exception Handling\obj\Debug\Assignment Exception Handling.pdb

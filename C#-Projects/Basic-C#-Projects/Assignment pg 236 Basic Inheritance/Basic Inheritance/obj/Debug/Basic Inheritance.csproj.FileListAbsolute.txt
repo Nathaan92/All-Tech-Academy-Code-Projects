@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Basic Inheritance\Basic Inheritance\bin\Debug\Basic Inheritance.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Basic Inheritance\Basic Inheritance\bin\Debug\Basic Inheritance.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Basic Inheritance\Basic Inheritance\bin\Debug\Basic Inheritance.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Basic Inheritance\Basic Inheritance\obj\Debug\Basic Inheritance.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Basic Inheritance\Basic Inheritance\obj\Debug\Basic Inheritance.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Basic Inheritance\Basic Inheritance\obj\Debug\Basic Inheritance.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Basic Inheritance\Basic Inheritance\obj\Debug\Basic Inheritance.pdb

@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\Assignment pg 125\Assignment pg 125\bin\Debug\Assignment pg 125.exe.config
+C:\Users\natha\Desktop\C#\Assignment pg 125\Assignment pg 125\bin\Debug\Assignment pg 125.exe
+C:\Users\natha\Desktop\C#\Assignment pg 125\Assignment pg 125\bin\Debug\Assignment pg 125.pdb
+C:\Users\natha\Desktop\C#\Assignment pg 125\Assignment pg 125\obj\Debug\Assignment pg 125.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\Assignment pg 125\Assignment pg 125\obj\Debug\Assignment pg 125.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\Assignment pg 125\Assignment pg 125\obj\Debug\Assignment pg 125.exe
+C:\Users\natha\Desktop\C#\Assignment pg 125\Assignment pg 125\obj\Debug\Assignment pg 125.pdb

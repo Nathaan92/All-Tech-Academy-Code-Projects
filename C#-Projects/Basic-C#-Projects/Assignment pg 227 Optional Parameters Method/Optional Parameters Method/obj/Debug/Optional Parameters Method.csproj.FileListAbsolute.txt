@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Optional Parameters Method\Optional Parameters Method\bin\Debug\Optional Parameters Method.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Optional Parameters Method\Optional Parameters Method\bin\Debug\Optional Parameters Method.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Optional Parameters Method\Optional Parameters Method\bin\Debug\Optional Parameters Method.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Optional Parameters Method\Optional Parameters Method\obj\Debug\Optional Parameters Method.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Optional Parameters Method\Optional Parameters Method\obj\Debug\Optional Parameters Method.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Optional Parameters Method\Optional Parameters Method\obj\Debug\Optional Parameters Method.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Optional Parameters Method\Optional Parameters Method\obj\Debug\Optional Parameters Method.pdb

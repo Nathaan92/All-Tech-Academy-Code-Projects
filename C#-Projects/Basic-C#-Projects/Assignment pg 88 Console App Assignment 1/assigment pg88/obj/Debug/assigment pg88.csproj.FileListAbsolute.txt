@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\assigment pg88\assigment pg88\obj\Debug\assigment pg88.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\assigment pg88\assigment pg88\bin\Debug\assigment pg88.exe.config
+C:\Users\natha\Desktop\C#\assigment pg88\assigment pg88\bin\Debug\assigment pg88.exe
+C:\Users\natha\Desktop\C#\assigment pg88\assigment pg88\bin\Debug\assigment pg88.pdb
+C:\Users\natha\Desktop\C#\assigment pg88\assigment pg88\obj\Debug\assigment pg88.exe
+C:\Users\natha\Desktop\C#\assigment pg88\assigment pg88\obj\Debug\assigment pg88.pdb
+C:\Users\natha\Desktop\C#\assigment pg88\assigment pg88\obj\Debug\assigment pg88.csprojAssemblyReference.cache

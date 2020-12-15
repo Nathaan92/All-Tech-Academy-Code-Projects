@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Methods pg 169\Methods pg 169\bin\Debug\Methods pg 169.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Methods pg 169\Methods pg 169\bin\Debug\Methods pg 169.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Methods pg 169\Methods pg 169\bin\Debug\Methods pg 169.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Methods pg 169\Methods pg 169\obj\Debug\Methods pg 169.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Methods pg 169\Methods pg 169\obj\Debug\Methods pg 169.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Methods pg 169\Methods pg 169\obj\Debug\Methods pg 169.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Methods pg 169\Methods pg 169\obj\Debug\Methods pg 169.pdb

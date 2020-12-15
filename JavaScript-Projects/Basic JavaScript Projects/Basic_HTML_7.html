@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+   <script src="./JS/Basic_JavaScript_7.js"></script>
+    <title>Exercise 7</title>
+</head>
+<body>
+   <div id="scope">
+        <div id="global">
+            <button onclick="global_Variables()">Global</button>
+            <p id="globalVariables"></p>
+        </div>
+        <div id="local">
+            <button onclick="local_Variables()">Local</button>
+            <p id="localVariables"></p>
+        </div>
+        <!--<div id="broken">
+            <button onclick="broken_Function()">Console</button>
+        </div>-->
+     </div>
+
+    <div id="if statement">
+        <div id="greeting">
+            <p id="Greeting" onclick="get_Date()">If Statement</p>
+        </div>
+        <div id="mine">
+               <p>Between 1-10 which number am I thinking of?</p>
+               <input type="text" id="random" value="5"><br> 
+               <input type="submit" value="Submit" onclick="guess_What()">
+               <p id="guesswhat"></p>
+        </div>
+    </div>
+</body>
+</html>

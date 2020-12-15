@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\ArraysAndLists\ArraysAndLists\obj\Debug\ArraysAndLists.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\ArraysAndLists\ArraysAndLists\obj\Debug\ArraysAndLists.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\ArraysAndLists\ArraysAndLists\bin\Debug\ArraysAndLists.exe.config
+C:\Users\natha\Desktop\C#\ArraysAndLists\ArraysAndLists\bin\Debug\ArraysAndLists.exe
+C:\Users\natha\Desktop\C#\ArraysAndLists\ArraysAndLists\bin\Debug\ArraysAndLists.pdb
+C:\Users\natha\Desktop\C#\ArraysAndLists\ArraysAndLists\obj\Debug\ArraysAndLists.exe
+C:\Users\natha\Desktop\C#\ArraysAndLists\ArraysAndLists\obj\Debug\ArraysAndLists.pdb

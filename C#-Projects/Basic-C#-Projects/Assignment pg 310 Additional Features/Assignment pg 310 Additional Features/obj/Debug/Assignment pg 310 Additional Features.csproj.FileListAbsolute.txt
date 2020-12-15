@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 310 Additional Features\Assignment pg 310 Additional Features\bin\Debug\Assignment pg 310 Additional Features.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 310 Additional Features\Assignment pg 310 Additional Features\bin\Debug\Assignment pg 310 Additional Features.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 310 Additional Features\Assignment pg 310 Additional Features\bin\Debug\Assignment pg 310 Additional Features.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 310 Additional Features\Assignment pg 310 Additional Features\obj\Debug\Assignment pg 310 Additional Features.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 310 Additional Features\Assignment pg 310 Additional Features\obj\Debug\Assignment pg 310 Additional Features.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 310 Additional Features\Assignment pg 310 Additional Features\obj\Debug\Assignment pg 310 Additional Features.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 310 Additional Features\Assignment pg 310 Additional Features\obj\Debug\Assignment pg 310 Additional Features.pdb

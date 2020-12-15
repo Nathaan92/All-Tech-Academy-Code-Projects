@@ -1,0 +1,7 @@
+C:\Users\natha\source\repos\Assignment pg100\Assignment pg100\bin\Debug\Assignment pg100.exe.config
+C:\Users\natha\source\repos\Assignment pg100\Assignment pg100\bin\Debug\Assignment pg100.exe
+C:\Users\natha\source\repos\Assignment pg100\Assignment pg100\bin\Debug\Assignment pg100.pdb
+C:\Users\natha\source\repos\Assignment pg100\Assignment pg100\obj\Debug\Assignment pg100.csprojAssemblyReference.cache
+C:\Users\natha\source\repos\Assignment pg100\Assignment pg100\obj\Debug\Assignment pg100.csproj.CoreCompileInputs.cache
+C:\Users\natha\source\repos\Assignment pg100\Assignment pg100\obj\Debug\Assignment pg100.exe
+C:\Users\natha\source\repos\Assignment pg100\Assignment pg100\obj\Debug\Assignment pg100.pdb

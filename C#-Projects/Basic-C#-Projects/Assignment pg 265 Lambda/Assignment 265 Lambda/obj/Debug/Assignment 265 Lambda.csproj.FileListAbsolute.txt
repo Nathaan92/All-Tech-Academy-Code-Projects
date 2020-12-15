@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment 265 Lambda\Assignment 265 Lambda\bin\Debug\Assignment 265 Lambda.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment 265 Lambda\Assignment 265 Lambda\bin\Debug\Assignment 265 Lambda.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment 265 Lambda\Assignment 265 Lambda\bin\Debug\Assignment 265 Lambda.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment 265 Lambda\Assignment 265 Lambda\obj\Debug\Assignment 265 Lambda.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment 265 Lambda\Assignment 265 Lambda\obj\Debug\Assignment 265 Lambda.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment 265 Lambda\Assignment 265 Lambda\obj\Debug\Assignment 265 Lambda.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment 265 Lambda\Assignment 265 Lambda\obj\Debug\Assignment 265 Lambda.pdb

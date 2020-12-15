@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="http://code.jquery.com/jquery-latest.min.js"></script>
+    <title>Basic jQuery</title>
+</head>
+<body>
+    <script>
+        $(document).ready(function() {
+            $("html").append(
+                "<body>\
+                    <div id='container'>\
+                        <div id='inner'>\
+                            <h1>Basic jQuery</h1>\
+                                <p id='1'>Paragraph 1</p>\
+                                <p id='2'>Paragraph 2</p>\
+                                <p id='3'>Paragraph 3</p>\
+                        </div>\
+                    </div>\
+                </body>"
+            ) ;
+            $("#2").css({"color":"red"});
+            $("#3").click(function() {
+                $('h1').hide().fade ;
+            });
+            $("h1").one( "click", firstClick );
+                function firstClick() {
+                    alert("Wecome to the dynamic web page!")
+                };
+            $("html").ready(function() {
+                $("html").delay(5000).fadeOut(5000).fadeIn(5000);
+            });
+        });
+    </script>
+</body>
+</html>

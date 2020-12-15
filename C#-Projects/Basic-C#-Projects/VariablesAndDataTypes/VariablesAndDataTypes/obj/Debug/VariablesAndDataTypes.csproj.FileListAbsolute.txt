@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\VariablesAndDataTypes\VariablesAndDataTypes\bin\Debug\VariablesAndDataTypes.exe.config
+C:\Users\natha\Desktop\C#\VariablesAndDataTypes\VariablesAndDataTypes\bin\Debug\VariablesAndDataTypes.exe
+C:\Users\natha\Desktop\C#\VariablesAndDataTypes\VariablesAndDataTypes\bin\Debug\VariablesAndDataTypes.pdb
+C:\Users\natha\Desktop\C#\VariablesAndDataTypes\VariablesAndDataTypes\obj\Debug\VariablesAndDataTypes.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\VariablesAndDataTypes\VariablesAndDataTypes\obj\Debug\VariablesAndDataTypes.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\VariablesAndDataTypes\VariablesAndDataTypes\obj\Debug\VariablesAndDataTypes.exe
+C:\Users\natha\Desktop\C#\VariablesAndDataTypes\VariablesAndDataTypes\obj\Debug\VariablesAndDataTypes.pdb

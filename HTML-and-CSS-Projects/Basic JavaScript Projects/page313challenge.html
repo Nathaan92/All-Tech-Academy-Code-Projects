@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <p id="XXMMLL"></p>
+    <script>
+        var XML_Parser, XML_Document;
+        var text = "<p>How much wood could a wood chuck chuck if a wood chuck could chuck wood?</p>"
+        XML_Parser = new DOMParser
+        XML_Document = XML_Parser.parseFromString(text,"text/html");
+        document.getElementById("XXMMLL").innerHTML =
+        XML_Document.getElementsByTagName("p")[0].childNodes[0].nodeValue;
+    </script>
+</body>
+</html>

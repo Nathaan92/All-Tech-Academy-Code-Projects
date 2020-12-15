@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\Console App Assigment\Console App Assigment\bin\Debug\Console App Assigment.exe.config
+C:\Users\natha\Desktop\C#\Console App Assigment\Console App Assigment\bin\Debug\Console App Assigment.exe
+C:\Users\natha\Desktop\C#\Console App Assigment\Console App Assigment\bin\Debug\Console App Assigment.pdb
+C:\Users\natha\Desktop\C#\Console App Assigment\Console App Assigment\obj\Debug\Console App Assigment.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\Console App Assigment\Console App Assigment\obj\Debug\Console App Assigment.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\Console App Assigment\Console App Assigment\obj\Debug\Console App Assigment.exe
+C:\Users\natha\Desktop\C#\Console App Assigment\Console App Assigment\obj\Debug\Console App Assigment.pdb

@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Same Name Methods\Same Name Methods\obj\Debug\Same Name Methods.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Same Name Methods\Same Name Methods\obj\Debug\Same Name Methods.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Same Name Methods\Same Name Methods\bin\Debug\Same Name Methods.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Same Name Methods\Same Name Methods\bin\Debug\Same Name Methods.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Same Name Methods\Same Name Methods\bin\Debug\Same Name Methods.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Same Name Methods\Same Name Methods\obj\Debug\Same Name Methods.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Same Name Methods\Same Name Methods\obj\Debug\Same Name Methods.pdb

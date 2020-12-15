@@ -1,0 +1,7 @@
+C:\Users\natha\Desktop\C#\Assignment pg 130\Assignment pg 130\bin\Debug\Assignment pg 130.exe.config
+C:\Users\natha\Desktop\C#\Assignment pg 130\Assignment pg 130\bin\Debug\Assignment pg 130.exe
+C:\Users\natha\Desktop\C#\Assignment pg 130\Assignment pg 130\bin\Debug\Assignment pg 130.pdb
+C:\Users\natha\Desktop\C#\Assignment pg 130\Assignment pg 130\obj\Debug\Assignment pg 130.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\C#\Assignment pg 130\Assignment pg 130\obj\Debug\Assignment pg 130.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\C#\Assignment pg 130\Assignment pg 130\obj\Debug\Assignment pg 130.exe
+C:\Users\natha\Desktop\C#\Assignment pg 130\Assignment pg 130\obj\Debug\Assignment pg 130.pdb

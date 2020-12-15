@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Basic AJAX Demo</title>
+		<link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div class="main">
+			<h2>Get The Latest Content:</h2>
+			<div class='content' id="content">
+				<input type="button" class="button" value="Get Content" id="btn_content2" onclick="getContent();"/>
+			</div>
+		<script type="text/javascript">
+            
+            // Step 1: Setup the XML http request odject
+            var ajax = new XMLHttpRequest();
+            // Step 2: Prepare the open AJAX request
+            ajax.open('GET','content.html');
+            //Step 3: Define the AJAX response calllback method
+            ajax.onreadystatechange = function() {
+                if (ajax.readyState = 4) {
+                    document.getElementById('content').innerHTML = ajax.responseText;
+                }
+            }
+            //Step 4: Send the AJAX requst for data
+            function getContent() {
+                ajax.send();
+                document.getElementById('btn_content').style.display = 'none';
+            }
+
+        </script>
+        </div>
+
+        <div id="secondary">
+            <h2 style="text-align: center;">Ready State Property</h2>
+			<div class='content' id="content">
+				<input type="button" class="button" value="Get Content" id="btn_Content2" onclick="loadDoc();"/>
+			</div>
+        <script type="text/javascript">
+            function loadDoc() {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                 if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("secondary").innerHTML = this.responseText;
+                 }
+             };
+             xhttp.open('GET', 'content.html', true);
+             xhttp.send();
+            }
+       </script>
+        </div>
+    </body>
+</html>

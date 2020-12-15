@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page 305 Challenge</title>
+</head>
+<body>
+    <div id=doctypename style="display: flex; align-items: center; justify-content: center;">
+        <button onclick="myFunction()" id="btn" >Click Here</button>
+    </div>
+    <script>
+        function myFunction() {
+          var type = document.doctype.name;
+          document.getElementById("doctypename").innerHTML = "This document is a " + type;
+        }
+        </script>
+</body>
+</html>

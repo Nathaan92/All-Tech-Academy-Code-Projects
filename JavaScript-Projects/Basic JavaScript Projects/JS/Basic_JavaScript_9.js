@@ -1,0 +1,43 @@
+//div id="timer"
+function countdown() {
+    var seconds = document.getElementById("seconds").value;
+
+    function tick() {
+        seconds = seconds - 1;
+        timer.innerHTML = seconds;
+        setTimeout(tick, 1000); //program is pausing for 1,000 millseconds
+        if(seconds == -1) {
+            alert("Time's up!");
+        }
+            }
+        tick();
+}
+
+// Slide Show
+
+var slideIndex = 1;
+showSlides(slideIndex);
+
+function plusSlides(n) {
+  showSlides(slideIndex += n);
+}
+
+function currentSlide(n) {
+  showSlides(slideIndex = n);
+}
+
+function showSlides(n) {
+  var i;
+  var slides = document.getElementsByClassName("hikes");
+  var dots = document.getElementsByClassName("dot");
+  if (n > slides.length) {slideIndex = 1}    
+  if (n < 1) {slideIndex = slides.length}
+  for (i = 0; i < slides.length; i++) {
+      slides[i].style.display = "none";  
+  }
+  for (i = 0; i < dots.length; i++) {
+      dots[i].className = dots[i].className.replace(" active", "");
+  }
+  slides[slideIndex-1].style.display = "block";  
+  dots[slideIndex-1].className += " active";
+}

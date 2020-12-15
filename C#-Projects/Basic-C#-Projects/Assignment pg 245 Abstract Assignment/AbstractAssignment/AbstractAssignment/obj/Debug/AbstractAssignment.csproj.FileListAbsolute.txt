@@ -1,0 +1,14 @@
+C:\Users\natha\source\repos\AbstractAssignment\AbstractAssignment\bin\Debug\AbstractAssignment.exe.config
+C:\Users\natha\source\repos\AbstractAssignment\AbstractAssignment\bin\Debug\AbstractAssignment.exe
+C:\Users\natha\source\repos\AbstractAssignment\AbstractAssignment\bin\Debug\AbstractAssignment.pdb
+C:\Users\natha\source\repos\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.csprojAssemblyReference.cache
+C:\Users\natha\source\repos\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.csproj.CoreCompileInputs.cache
+C:\Users\natha\source\repos\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.exe
+C:\Users\natha\source\repos\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 245\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.csprojAssemblyReference.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 245\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.csproj.CoreCompileInputs.cache
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 245\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 245\AbstractAssignment\AbstractAssignment\obj\Debug\AbstractAssignment.pdb
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 245\AbstractAssignment\AbstractAssignment\bin\Debug\AbstractAssignment.exe.config
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 245\AbstractAssignment\AbstractAssignment\bin\Debug\AbstractAssignment.exe
+C:\Users\natha\Desktop\Nice or Mean Game\The-Tech-Academy-Basic-C-Sharp-Projects\Assignment pg 245\AbstractAssignment\AbstractAssignment\bin\Debug\AbstractAssignment.pdb
