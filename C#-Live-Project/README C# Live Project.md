@@ -32,21 +32,21 @@ was the same as the users current then the button would be disabeld and be visua
 
 Here I grabbed the users current plan, grabbed the the object matching what the user selected in the drop down, and made changes to the database accordingly.
 
-//Post. Edits the signed in Users Subscription Plan. Recieves selected option from index page.
-        public ActionResult ChangeSubscriptionPlan(string sublevel)
-        {
-            //Finds user ID and associated subsciber attribute values
-            string id = User.Identity.GetUserId();
-            ApplicationUser user = db.Users.Find(id);
-            Subscriber subscriber = user.SubscriberPerson;
-            //Seaches subscription plan model for attribute matching selected option from index page. Assigns subscription plan object to local variable
-            var subscriptionplan = db.SubscriptionPlan.FirstOrDefault(p => p.SubscriptionLevel == sublevel);
-            //Making changes to model and save. Returns to index page
-            subscriber.SubscriptionPlan = subscriptionplan;
-            db.Entry(subscriber).State = EntityState.Modified;
-            db.SaveChanges();
-            return RedirectToAction("Index");
-        }
+	//Post. Edits the signed in Users Subscription Plan. Recieves selected option from index page.
+        	public ActionResult ChangeSubscriptionPlan(string sublevel)
+        	{
+           	 //Finds user ID and associated subsciber attribute values
+            	string id = User.Identity.GetUserId();
+            	ApplicationUser user = db.Users.Find(id);
+            	Subscriber subscriber = user.SubscriberPerson;
+            	//Seaches subscription plan model for attribute matching selected option from index page. Assigns subscription plan object to local variable
+            	var subscriptionplan = db.SubscriptionPlan.FirstOrDefault(p => p.SubscriptionLevel == sublevel);
+            	//Making changes to model and save. Returns to index page
+            	subscriber.SubscriptionPlan = subscriptionplan;
+            	db.Entry(subscriber).State = EntityState.Modified;
+            	db.SaveChanges();
+            	return RedirectToAction("Index");
+        	}
 
 This is the inline script that would disable the button if the subscription chosen is the same as the users current.
 
@@ -189,7 +189,7 @@ for similarities.
 ## Front End Stories
 * [Change Create New Link](#Change-Create New-Link)
 
-###Change Create New Link
+### Change Create New Link
 This stories goal was to make changes to a button on a page and to utilize Bootstrap classes to accomplish this. It was the first time dealing with Bootstrap class and was 
 definetly a learnin experience for myself.
 
