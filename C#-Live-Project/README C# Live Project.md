@@ -10,10 +10,10 @@ Below are descriptions of the stories I worked on, along with code snippets and 
 
 
 ## Back End Stories
-* [Subscription plan 1](#Subscription plan 1)
-* [Subscription Plan 2](#Subscription Plan 2)
-* [Seed Subscription Plan](#Seed Subscription Plan)
-* [CRUD Pages & Functionality for Subscription Plans](#CRUD Pages & Functionality for Subscription Plans)
+* [Subscription plan 1](#Subscription-plan-1)
+* [Subscription Plan 2](#Subscription-Plan-2)
+* [Seed Subscription Plan](#Seed-Subscription-Plan)
+* [CRUD Pages & Functionality for Subscription Plans](#CRUD-Pages-&-Functionality-for-Subscription-Plans)
 
 The back end stories that I chose to work on during the live project were centered around the creation of a Subscripiton plan for Subscribers. I chose them specfically because not only did I want to work on an ever increaseing difficulty but I also wanted to work on a new aspect 
 of the web page from start to finish. 
