@@ -1,24 +1,25 @@
-<dl>
-  <dt>Project Name:</dt>
-  <dd>Python Live Project</dd>
+# Live Project
 
-  <dt>Project Description:</dt>
-  <dd>Over the course of the last two weeks I have partaken in the tech Academys Live Project.
-I have worked with my peers in a team environment developing apps using Django framework.
-Over the course of the project I started the development of my app known as HAPP and was able to complete four stories over the course of a full work week.
-In my opinion this project allowed me insight into the day to day of working in a development team and the process by which work is completed in this environment.
-By working on the development of an app i was able to work on both front end and back end tasks which was an excellent opportunity to try out the skills that I had developed 
-during my boot camp course.
-
-
-Below I have included snippets from the project with brief explanations of what they do and the thinking behind my methods.
-</dd>
+## Introduction
+Over the course of the last two weeks I have partaken in the tech Academys Live Project working part time.
+I have worked with my peers in a team environment developing apps using Django framework. Over the course of the project I started the development of my app known as HAPP 
+and was able to complete four stories over the course of a full work week. In my opinion this project allowed me insight into the day to day of working in a development team 
+and the process by which work is completed in this environment. By working on the development of an app I was able to work on both [Front End](#Front-End) and [Back end](#Back-End) 
+tasks which was an excellent opportunity to try out the skills that I had developed during my boot camp course. All were of varying degrees of difficulty and required me to use my 
+project management and team working skills which I'm confident I will use again and again on future projects.
   
+Below are descriptions of the stories I worked on, along with code snippets and navigation links.
 
-	<dt>Snips:</dt>
-	<dd>Models</dd>
 
-<dd>
+
+###Back End
+* [Models](#Models)
+* [Forms](#Forms)
+* [Views](#Views)
+* [URLs](#URLs)
+
+###Models
+
 I created 2 models for this app. One that is a survey that the users can fill 
 out regarding thier preferences and the second that ceates a new user.
 from django.db import models
@@ -91,7 +92,7 @@ class hike_preferences(models.Model):
     def __str__(self):
         return self.nick_name
 
-Forms
+###Forms
 
 To provid the users with a actionable form that they can fill out.
 
@@ -115,7 +116,7 @@ class survey(ModelForm):
         fields = '__all__'
 
 
-Views 
+###Views 
 
 I created 5 functions for my app. The Home function will return the user to the home page. Details renders a web page that provides details regarding a selected field in the database,
 Surevey Results renders a page that provides all fields from the specified database. Daily survey renders a survey webpage that a user can fill out and submit. Finally create happ user will
@@ -180,7 +181,7 @@ def create_the_happ_user(request):
     return render(request, 'HikingApp/HikingApp_MyProfile.html', {'form': form})
 
 
-URLs 
+##URLs 
 
 This page maps the fucntions created prior to the URL
 
@@ -209,11 +210,16 @@ urlpatterns = [
 
 ]
 
-Front End
+### Front End
+* [Base](#Base)
+* [Home Page](#Home-Page)
+* [Nav Bar](#Nav-Bar)
+* [Survey](#Survey)
+* [Survey Results](#Survey-Results)
+* [CSS](#CSS)
 
-HTML pages
-
-Bellow are a few examples of my HTML pages and their base
+This is a collection of HTML pages, their respective base, page elements, and CSS styling. Rather than going with a frame work I decided
+to create a website on my own initiative. 
 
 Base
 
@@ -265,7 +271,7 @@ Nav Bar
 
 </div>
 
-Home Page
+###Home Page
 
 <!-- extending block tags from base template -->
 {% extends "HikingApp/HikingApp_Base.html" %}
@@ -286,7 +292,7 @@ Home Page
     </div>
 {% endblock %}
 
-Survey
+###Survey
 
 <!-- extending block tags from base template -->
 {% extends "HikingApp/HikingApp_Base.html" %}
@@ -314,7 +320,7 @@ Survey
     </div>
 {% endblock %}
 
-Survey Results
+###Survey Results
 
 <!-- extending block tags from base template -->
 {% extends "HikingApp/HikingApp_Base.html" %}
@@ -364,7 +370,7 @@ Survey Results
 </div>
 {% endblock %}
 
-CSS
+###CSS
 
 html, body {
     height: 100%;
@@ -460,10 +466,9 @@ footer {
 
 }
 
+*Jump to: [Back End](#Back-Ends), [Front End](#Front-End)*
 
 
 
-And that was some code from my Project. To view it all please take a look in the Hiking App folder!
 
-</dd>
-</dl>
+
