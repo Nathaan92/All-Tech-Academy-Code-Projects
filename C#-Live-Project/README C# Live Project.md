@@ -189,7 +189,7 @@ public void CompareEditedPlans(SubscriptionPlan subscription)
 ## Front End Stories
 * [Change 'Create New' Link](#Change-'Create New'-Link)
 
-### Change 'Create New' Link
+###Change 'Create New' Link
 This stories goal was to make changes to a button on a page and to utilize Bootstrap classes to accomplish this. It was the first time dealing with Bootstrap class and was 
 definetly a learnin experience for myself.
 
@@ -198,7 +198,7 @@ definetly a learnin experience for myself.
 *Jump to: [Front End Stories](#front-end-stories), [Back End Stories](#back-end-stories), [Debug](#Debug), [Page Top](#live-project)*
 
 ## Debug
-* [Subscriber Bug(#Subscriber-Bug)
+* [Subscriber Bug](#Subscriber-Bug)
 
 ### Subscriber Bug
 The Stories goal was to track down a bug where when a user makes a change to one of the saved values in an edit page that the change is not made to the database. The issue for this 
