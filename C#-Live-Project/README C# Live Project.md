@@ -187,7 +187,7 @@ for similarities.
 
 
 ## Front End Stories
-* [Change Create New Link](#Change-Create New-Link)
+* [Change Create New Link](#Change-Create-New-Link)
 
 ### Change Create New Link
 This stories goal was to make changes to a button on a page and to utilize Bootstrap classes to accomplish this. It was the first time dealing with Bootstrap class and was 
