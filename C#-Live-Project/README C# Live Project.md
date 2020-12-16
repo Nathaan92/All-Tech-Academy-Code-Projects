@@ -93,95 +93,95 @@ These plans would have values that are not present in any other objects. In othe
 
 The create new method was more straight forward. I used a foreach loop to check each object in the database for similarity and if a simlar value was found it would retrun a model state error to the views page informing the user.
 
- public void ComparePlanOptions(SubscriptionPlan subscriptionPlan)
-        {
-            //Checks each object in dB 
-            foreach (var plan in db.SubscriptionPlan)
-            {
-                //Assigns both the users input and the objects specified attribute to strings
-                string SubscriptionLevel = subscriptionPlan.SubscriptionLevel;
-                string ExistingSubscriptionLevel = plan.SubscriptionLevel;
+	public void ComparePlanOptions(SubscriptionPlan subscriptionPlan)
+        	{
+            	//Checks each object in dB 
+            	foreach (var plan in db.SubscriptionPlan)
+            	{
+                	//Assigns both the users input and the objects specified attribute to strings
+                	string SubscriptionLevel = subscriptionPlan.SubscriptionLevel;
+                	string ExistingSubscriptionLevel = plan.SubscriptionLevel;
 
-                //Assigns both the users input and the objects specified attribute to strings
-                decimal PricePerYear = subscriptionPlan.PricePerYear;
-                decimal ExistingPricePerYear = plan.PricePerYear;
+                	//Assigns both the users input and the objects specified attribute to strings
+                	decimal PricePerYear = subscriptionPlan.PricePerYear;
+                	decimal ExistingPricePerYear = plan.PricePerYear;
 
-                //Assigns both the users input and the objects specified attribute to strings
-                int NumberOfShows = subscriptionPlan.NumberOfShows;
-                int ExistingNumberOfShows = plan.NumberOfShows;
+                	//Assigns both the users input and the objects specified attribute to strings
+                	int NumberOfShows = subscriptionPlan.NumberOfShows;
+                	int ExistingNumberOfShows = plan.NumberOfShows;
 
-                //comparason of users input and specified attribute, check for equal
-                if (ExistingSubscriptionLevel.Equals(SubscriptionLevel))
-                {
-                    //if equal then trigger model error to display on html page
-                    ModelState.AddModelError("SubscriptionPlan", " There is already a plan with that Subscription Level named: " + SubscriptionLevel);
-                }
-                //comparason of users input and specified attribute, check for equal
-                else if (ExistingPricePerYear.Equals(PricePerYear))
-                {
-                    //if equal then trigger model error to display on html page
-                    ModelState.AddModelError("SubscriptionPlan", " There is already a plan that offers a price/year of: " + PricePerYear);
-                }
-                //comparason of users input and specified attribute, check for equal
-                else if (ExistingNumberOfShows.Equals(NumberOfShows))
-                {
-                    //if equal then trigger model error to display on html page
-                    ModelState.AddModelError("SubscriptionPlan", " There is already a Plan that offers:  " + NumberOfShows);
-                }
-            }
+                	//comparason of users input and specified attribute, check for equal
+                	if (ExistingSubscriptionLevel.Equals(SubscriptionLevel))
+                	{
+                 	   //if equal then trigger model error to display on html page
+                 	   ModelState.AddModelError("SubscriptionPlan", " There is already a plan with that Subscription Level named: " + SubscriptionLevel);
+                	}	
+                	//comparason of users input and specified attribute, check for equal
+                	else if (ExistingPricePerYear.Equals(PricePerYear))
+                	{
+                	    //if equal then trigger model error to display on html page
+                 	   ModelState.AddModelError("SubscriptionPlan", " There is already a plan that offers a price/year of: " + PricePerYear);
+                	}
+                	//comparason of users input and specified attribute, check for equal
+                	else if (ExistingNumberOfShows.Equals(NumberOfShows))
+                	{
+                  	  //if equal then trigger model error to display on html page
+                  	  ModelState.AddModelError("SubscriptionPlan", " There is already a Plan that offers:  " + NumberOfShows);
+                	}
+            	}
 
 The edit page required a similar approach but here I had to first seperate the plan being edited from the database and then compare the edited plan to the remaing objects to check
 for similarities.
 
-public void CompareEditedPlans(SubscriptionPlan subscription)
-        {
-            //Assigns already existing plan with similar vaules to a var to exclude foreach loop
-            var CurrentLevel = db.SubscriptionPlan.AsNoTracking().Where(p =>
-                p.SubscriptionLevel == subscription.SubscriptionLevel ||
-                p.PricePerYear == subscription.PricePerYear ||
-                p.NumberOfShows == subscription.NumberOfShows).FirstOrDefault();
-            //Check if current plan is null, if false program continues unhindered. If true enters foreach
-            if (CurrentLevel != null)
-            {
-                //Assignment of dB excluding CurrentLevel to Var
-                var SubscriptionPlanddB = db.SubscriptionPlan.AsNoTracking().ToList();
-                SubscriptionPlanddB.RemoveAll(cl => cl.PlanId.Equals(CurrentLevel.PlanId));
+	public void CompareEditedPlans(SubscriptionPlan subscription)
+        	{
+            		//Assigns already existing plan with similar vaules to a var to exclude foreach loop
+            		var CurrentLevel = db.SubscriptionPlan.AsNoTracking().Where(p =>
+                	p.SubscriptionLevel == subscription.SubscriptionLevel ||
+                	p.PricePerYear == subscription.PricePerYear ||
+                	p.NumberOfShows == subscription.NumberOfShows).FirstOrDefault();
+            	//Check if current plan is null, if false program continues unhindered. If true enters foreach
+            	if (CurrentLevel != null)
+            	{	
+                	//Assignment of dB excluding CurrentLevel to Var
+                	var SubscriptionPlanddB = db.SubscriptionPlan.AsNoTracking().ToList();
+                	SubscriptionPlanddB.RemoveAll(cl => cl.PlanId.Equals(CurrentLevel.PlanId));
 
-                foreach (var plan in SubscriptionPlanddB)
-                {
-                    //Assigns both the users input and the objects specified attribute to strings
-                    string SubscriptionLevel = subscription.SubscriptionLevel;
-                    string ExistingSubscriptionLevel = plan.SubscriptionLevel;
+                	foreach (var plan in SubscriptionPlanddB)
+                	{
+                    	//Assigns both the users input and the objects specified attribute to strings
+                    	string SubscriptionLevel = subscription.SubscriptionLevel;
+                    	string ExistingSubscriptionLevel = plan.SubscriptionLevel;
 
-                    //Assigns both the users input and the objects specified attribute to strings
-                    decimal PricePerYear = subscription.PricePerYear;
-                    decimal ExistingPricePerYear = plan.PricePerYear;
+                    	//Assigns both the users input and the objects specified attribute to strings
+                    	decimal PricePerYear = subscription.PricePerYear;
+                    	decimal ExistingPricePerYear = plan.PricePerYear;
 
-                    //Assigns both the users input and the objects specified attribute to strings
-                    int NumberOfShows = subscription.NumberOfShows;
-                    int ExistingNumberOfShows = plan.NumberOfShows;
+                    	//Assigns both the users input and the objects specified attribute to strings
+                    	int NumberOfShows = subscription.NumberOfShows;
+                    	int ExistingNumberOfShows = plan.NumberOfShows;
 
-                    //comparason of users input and specified attribute, check for equal
-                    if (ExistingSubscriptionLevel.Equals(SubscriptionLevel))
-                    {
-                        //if equal then trigger model error to display on html page
-                        ModelState.AddModelError("SubscriptionPlan", " There is already a plan with that Subscription Level named: " + SubscriptionLevel);
-                    }
-                    //comparason of users input and specified attribute, check for equal
-                    else if (ExistingPricePerYear.Equals(PricePerYear))
-                    {
-                        //if equal then trigger model error to display on html page
-                        ModelState.AddModelError("SubscriptionPlan", " There is already a plan that offers a price/year of: " + PricePerYear);
-                    }
-                    //comparason of users input and specified attribute, check for equal
-                    else if (ExistingNumberOfShows.Equals(NumberOfShows))
-                    {
-                        //if equal then trigger model error to display on html page
-                        ModelState.AddModelError("SubscriptionPlan", " There is already a Plan that offers:  " + NumberOfShows);
-                    }
-                }
-            }
-        }
+                    	//comparason of users input and specified attribute, check for equal
+                    	if (ExistingSubscriptionLevel.Equals(SubscriptionLevel))
+                    	{
+                    	    //if equal then trigger model error to display on html page
+                    	    ModelState.AddModelError("SubscriptionPlan", " There is already a plan with that Subscription Level named: " + SubscriptionLevel);
+                    	}
+                    	//comparason of users input and specified attribute, check for equal
+                    	else if (ExistingPricePerYear.Equals(PricePerYear))
+                    	{
+                     	   //if equal then trigger model error to display on html page
+                     	   ModelState.AddModelError("SubscriptionPlan", " There is already a plan that offers a price/year of: " + PricePerYear);
+                   	 }
+                	    //comparason of users input and specified attribute, check for equal
+                	    else if (ExistingNumberOfShows.Equals(NumberOfShows))
+                	    {
+                	        //if equal then trigger model error to display on html page
+                	        ModelState.AddModelError("SubscriptionPlan", " There is already a Plan that offers:  " + NumberOfShows);
+                 	   }
+               	 }
+           	 }
+      	  }
 
 *Jump to: [Front End Stories](#front-end-stories), [Back End Stories](#back-end-stories), [Debug](#Debug),[Page Top](#live-project)*
 
@@ -189,7 +189,7 @@ public void CompareEditedPlans(SubscriptionPlan subscription)
 ## Front End Stories
 * [Change Create New Link](#Change-Create New-Link)
 
-###Change 'Create New' Link
+###Change Create New Link
 This stories goal was to make changes to a button on a page and to utilize Bootstrap classes to accomplish this. It was the first time dealing with Bootstrap class and was 
 definetly a learnin experience for myself.
 
