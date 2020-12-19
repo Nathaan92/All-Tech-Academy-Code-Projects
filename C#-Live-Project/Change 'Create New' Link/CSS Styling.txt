@@ -1,7 +1,0 @@
-.productionPhotoCreateNewIconBackground {
-    font-size: 1.5rem;
-}
-.productionPhotoCreateNewIconForground {
-    font-size: 2rem;
-    color: var(--main-bg-color);
-}
